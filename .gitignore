@@ -1,0 +1,3 @@
+.vscode
+# don't commit compiled files
+unobot*
