@@ -3,7 +3,6 @@ package bot
 import (
 	"fmt"
 	"log"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -19,6 +18,7 @@ import (
 // TODO: fix PreviousPlayer lookup (fixed??)
 // TODO: fix asking for color when it is the last card (fixed??)
 // TODO: fix that players can see each other's deck
+// TODO: fix that if player throws a Wild card and leaves, others can't play a card other than Wild ones
 
 type Game *uno.Game[*UnoPlayer]
 
@@ -56,7 +56,7 @@ func (self *BotHandler) handleInlineQuery(update tgbotapi.Update) error {
 		return err
 	}
 
-	cards_ := player.Deck().Cards
+	Cards := player.Deck().Cards
 	isPlayersTurn := userID == game.CurrentPlayer().UserId
 
 	if isPlayersTurn && player.ShouldChooseColor() {
@@ -70,7 +70,7 @@ func (self *BotHandler) handleInlineQuery(update tgbotapi.Update) error {
 			extra += 1
 		}
 	}
-	cardsLength := len(cards_)
+	cardsLength := len(Cards)
 	results := make([]interface{}, cardsLength+extra)
 
 	if isPlayersTurn {
@@ -88,24 +88,24 @@ func (self *BotHandler) handleInlineQuery(update tgbotapi.Update) error {
 	}
 
 	gameInfoStr := GetGameInfoStr(game)
-	Cards := make([]IndexedStruct[*cards.Card], cardsLength)
-	for index, card := range cards_ {
-		Cards[index] = IndexedStruct[*cards.Card]{
-			Value: &card,
-			Index: index,
-		}
-	}
-	sort.Slice(Cards, func(i, j int) bool {
-		return Cards[i].Value.GetGlobalIndex() < Cards[j].Value.GetGlobalIndex()
-	})
 
-	for index, el := range Cards {
+	// Cards := make([]IndexedStruct[*cards.Card], cardsLength)
+	// for index, card := range Cards {
+	// 	Cards[index] = IndexedStruct[*cards.Card]{
+	// 		Value: &card,
+	// 		Index: index,
+	// 	}
+	// }
+	// sort.Slice(Cards, func(i, j int) bool {
+	// 	return Cards[i].Value.GetGlobalIndex() < Cards[j].Value.GetGlobalIndex()
+	// })
+
+	for index, card := range Cards {
 		i := index + extra
-		card := el.Value
 
-		canPlayCard := isPlayersTurn && game.CanCurrentPlayerPlayCard(card)
+		canPlayCard := isPlayersTurn && game.CanCurrentPlayerPlayCard(&card)
 		if canPlayCard && game.DidJustDraw {
-			canPlayCard = el.Index == cardsLength-1
+			canPlayCard = index == cardsLength-1
 		}
 
 		if canPlayCard {
@@ -212,6 +212,8 @@ func (self *BotHandler) handlePassInlineResult(update tgbotapi.Update) error {
 		return nil
 	}
 
+	// sort deck because user took card and passed the turn
+	playerGame.UnoPlayer.deck.Sort()
 	game.NextPlayer()
 	return self.nextPlayer(update, playerGame.GameChatId, game)
 }

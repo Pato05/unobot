@@ -227,6 +227,7 @@ func (self *Game[T]) CurrentPlayerDraw() error {
 		self.PlayerDrew()
 	} else {
 		err = self.CurrentPlayer().Deck().Draw(&self.Deck, self.DrawCounter)
+		self.CurrentPlayer().Deck().Sort()
 		self.PlayerDrew()
 		self.NextPlayer()
 	}

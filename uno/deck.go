@@ -2,6 +2,7 @@ package uno
 
 import (
 	"math/rand"
+	"sort"
 	"time"
 
 	"github.com/Pato05/unobot/cards"
@@ -20,8 +21,15 @@ type PlayerDeck struct {
 	Cards []cards.Card
 }
 
+func (self *PlayerDeck) Sort() {
+	sort.SliceStable(self.Cards, func(i, j int) bool {
+		return self.Cards[i].GetGlobalIndex() < self.Cards[i].GetGlobalIndex()
+	})
+}
+
 func (self *PlayerDeck) Fill(deck *Deck) {
 	self.Draw(deck, INITIAL_CARDS_COUNT)
+	self.Sort()
 }
 
 func (self *PlayerDeck) Draw(deck *Deck, n uint8) error {

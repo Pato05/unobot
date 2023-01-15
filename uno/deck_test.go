@@ -30,6 +30,32 @@ func BenchmarkDeckFill(b *testing.B) {
 	}
 }
 
+func BenchmarkPlayerDeckSortOnce(b *testing.B) {
+	var deck Deck
+	deck.Fill()
+	var pDeck PlayerDeck
+	pDeck.Fill(&deck)
+
+	for i := 0; i < b.N; i++ {
+		pDeck.Sort()
+	}
+}
+
+func BenchmarkPlayerDeckSortEvery(b *testing.B) {
+	var deck Deck
+	deck.Fill()
+	Cards := deck.Cards
+	var pDeck PlayerDeck
+	pDeck.Fill(&deck)
+
+	for i := 0; i < b.N; i++ {
+		pDeck.Cards = []cards.Card{}
+		deck.Cards = Cards
+		pDeck.Fill(&deck)
+		pDeck.Sort()
+	}
+}
+
 func TestDeckCards(t *testing.T) {
 	var deck Deck
 	deck.Fill()
