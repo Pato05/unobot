@@ -33,6 +33,10 @@ func NewBotHandler(bot *tgbotapi.BotAPI, verbose bool) *BotHandler {
 }
 
 func (self *BotHandler) ParseCommand(message string) string {
+	// there is actually a parser for this with `update.Message.Command()`, but since
+	// telegram sends UTF-16 entities, and that function treats it as UTF-8, it is not trustable.
+	// moreover, that function doesn't check if the username after the "@" symbol matches
+	// the bot's, so it could potentially make the bot answer messages it's not supposed to.
 	if !strings.HasPrefix(message, "/") {
 		return ""
 	}
@@ -50,63 +54,28 @@ func (self *BotHandler) ParseCommand(message string) string {
 	return message[1:idx]
 }
 
-func (self *BotHandler) handlePrivateMessage(update tgbotapi.Update) error {
-	command := self.ParseCommand(update.Message.Text)
-
-	switch command {
-	case "start":
-		return self.handleStart(update)
-	}
-
-	return nil
-}
-
-func (self *BotHandler) handleGroupMessage(update tgbotapi.Update) error {
-	command := self.ParseCommand(update.Message.Text)
-
-	switch command {
-	case "gonew":
-		return self.handleNewGame(update)
-	case "gojoin":
-		return self.handleJoinGame(update)
-	case "goleave":
-		return self.handleLeaveGame(update)
-	case "goplayers":
-		return self.handleGetPlayers(update)
-	case "gostart":
-		return self.handleGameStart(update)
-	case "goopen":
-		return self.handleOpenLobby(update)
-	case "goclose":
-		return self.handleCloseLobby(update)
-	case "gokill":
-		return self.handleKillGame(update)
-	case "goinfo":
-		return self.handleGameInfo(update)
-	}
-
-	return nil
-}
-
+// dispatches the update according to its fields
 func (self *BotHandler) ProcessUpdate(update tgbotapi.Update) error {
 	if update.Message != nil {
 		if update.Message.Chat.ID > 0 {
-			return self.handlePrivateMessage(update)
+			return self.handlePrivateMessage(update.Message)
 		}
 
-		return self.handleGroupMessage(update)
+		return self.handleGroupMessage(update.Message)
 	}
 
 	if update.InlineQuery != nil {
-		return self.handleInlineQuery(update)
+		return self.handleInlineQuery(update.InlineQuery)
 	}
 
 	if update.ChosenInlineResult != nil {
-		return self.handleInlineResult(update)
+		return self.handleInlineResult(update.ChosenInlineResult)
 	}
 
 	return nil
 }
+
+/// Helper methods
 
 func (self *BotHandler) SendMessage(chatId int64, text string) error {
 	msg := tgbotapi.NewMessage(chatId, text)

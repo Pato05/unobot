@@ -1,10 +1,12 @@
 package uno
 
 import (
+	"math/rand"
+
 	"github.com/Pato05/unobot/cards"
 )
 
-type Game[T Player] struct {
+type Game[T IPlayer] struct {
 	// the game deck
 	Deck         Deck
 	Players      []T
@@ -163,6 +165,7 @@ func (self *Game[T]) LeavePlayer(player T) error {
 func (self *Game[T]) LeavePlayerByIndex(index uint8) error {
 	if self.Started {
 		player := self.Players[index]
+		self.PreAutoSkipPlayer()
 		for _, card := range player.Deck().Cards {
 			self.Deck.Discard(card)
 		}
@@ -211,6 +214,15 @@ func (self *Game[T]) NextPlayer() T {
 
 	self.index++
 	return self.Players[self.currentPlayerIndex()]
+}
+
+// call this when a player leaves or a player is automatically skipped
+func (self *Game[T]) PreAutoSkipPlayer() {
+	player := self.CurrentPlayer()
+	// if the player should choose the colour (wild card played), let it choose a random colour
+	if player.ShouldChooseColor() {
+		self.PreviousCard.Color = cards.CardColor(rand.Intn(int(cards.Red)) + int(cards.Blue))
+	}
 }
 
 // call this after a player drew (one or more) card(s)

@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/Pato05/unobot/bot"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -26,10 +27,22 @@ func main() {
 
 	handler := bot.NewBotHandler(tbot, true)
 
-	updates := tbot.GetUpdatesChan(tgbotapi.NewUpdate(-1))
+	config := tgbotapi.NewUpdate(-1)
+	for {
+		updates, err := tbot.GetUpdates(config)
+		// stop here if the error happened because of another instance running
+		if err != nil {
+			log.Println("GetUpdates call failed:")
+			log.Println(err)
+			log.Println("\nWaiting 5 seconds before next call...")
+			time.Sleep(time.Second * 5)
+		}
 
-	for update := range updates {
-		//gen.HandleGreyCardsGen(update, tbot)
-		go handler.ProcessUpdate(update)
+		for i := range updates {
+			go handler.ProcessUpdate(updates[i])
+		}
+		if len(updates) > 0 {
+			config.Offset = updates[len(updates)-1].UpdateID + 1
+		}
 	}
 }

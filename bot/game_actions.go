@@ -73,7 +73,7 @@ func GetGameInfoStr(game *uno.Game[*UnoPlayer]) string {
 			prefix = ""
 		}
 
-		content := fmt.Sprintf("%s (%d cards)", player.Name, player.CardCount())
+		content := fmt.Sprintf("%s (%d cards)", player.EscapedName(), player.CardCount())
 
 		if currentPlayer.GetUID() == player.GetUID() {
 			return prefix + "<b>" + content + "</b>"
@@ -98,8 +98,8 @@ func GetGameInfoStr(game *uno.Game[*UnoPlayer]) string {
 			"Last card: %s %s\n"+
 			"Players: %s",
 
-		currentPlayer.UserId,
-		currentPlayer.Name,
+		currentPlayer.GetUID(),
+		currentPlayer.EscapedName(),
 
 		CardColorEmojis[lastCard.Color],
 		cardStr,

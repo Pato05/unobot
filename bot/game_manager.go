@@ -1,8 +1,6 @@
 package bot
 
 import (
-	"html"
-
 	"github.com/Pato05/unobot/uno"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -55,7 +53,7 @@ func (self *GameManager) DeleteGame(chatId int64) error {
 	}
 
 	for _, player := range game.Players {
-		delete(self.players, player.UserId)
+		delete(self.players, player.GetUID())
 	}
 
 	delete(self.games, chatId)
@@ -73,11 +71,15 @@ func (self *GameManager) PlayerJoin(chatId int64, user *tgbotapi.User) error {
 	}
 
 	player := &UnoPlayer{
-		Name:   html.EscapeString(user.FirstName),
-		UserId: user.ID,
+		uno.Player{
+			Name: user.FirstName,
+			Id:   user.ID,
+		},
 	}
 
-	game.JoinPlayer(player)
+	if err := game.JoinPlayer(player); err != nil {
+		return err
+	}
 
 	self.players[user.ID] = PlayerGame{
 		Game:       game,
