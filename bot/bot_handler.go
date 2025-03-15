@@ -54,22 +54,28 @@ func (self *BotHandler) ParseCommand(message string) string {
 	return message[1:idx]
 }
 
-// dispatches the update according to its fields
+// dispatches the update according to its fields,
+// creating a copy of the structs so that the variables
+// are not replaced by a subsequent update.
 func (self *BotHandler) ProcessUpdate(update tgbotapi.Update) error {
 	if update.Message != nil {
+		// create a copy of the struct
+		msg := *update.Message
 		if update.Message.Chat.ID > 0 {
-			return self.handlePrivateMessage(update.Message)
+			return self.handlePrivateMessage(&msg)
 		}
 
-		return self.handleGroupMessage(update.Message)
+		return self.handleGroupMessage(&msg)
 	}
 
 	if update.InlineQuery != nil {
-		return self.handleInlineQuery(update.InlineQuery)
+		inlineQuery := *update.InlineQuery
+		return self.handleInlineQuery(&inlineQuery)
 	}
 
 	if update.ChosenInlineResult != nil {
-		return self.handleInlineResult(update.ChosenInlineResult)
+		inlineResult := *update.ChosenInlineResult
+		return self.handleInlineResult(&inlineResult)
 	}
 
 	return nil
