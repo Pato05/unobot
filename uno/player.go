@@ -17,34 +17,34 @@ type Player struct {
 	shouldChooseColor bool
 }
 
-func (self *Player) ShouldChooseColor() bool {
-	return self.shouldChooseColor
+func (p *Player) ShouldChooseColor() bool {
+	return p.shouldChooseColor
 }
 
-func (self *Player) SetShouldChooseColor(shouldChooseColor bool) {
-	self.shouldChooseColor = shouldChooseColor
+func (p *Player) SetShouldChooseColor(shouldChooseColor bool) {
+	p.shouldChooseColor = shouldChooseColor
 }
 
-func (self *Player) CardCount() int {
-	return len(self.deck.Cards)
+func (p *Player) CardCount() int {
+	return len(p.deck.Cards)
 }
 
-func (self *Player) ShouldShoutUNO() bool {
-	return self.CardCount() == 1
+func (p *Player) ShouldShoutUNO() bool {
+	return p.CardCount() == 1
 }
 
-func (self *Player) GetUID() int64 {
-	return self.Id
+func (p *Player) GetUID() int64 {
+	return p.Id
 }
 
-func (self *Player) DidWin() bool {
-	return self.CardCount() == 0 && !self.shouldChooseColor
+func (p *Player) DidWin() bool {
+	return p.CardCount() == 0 && !p.shouldChooseColor
 }
 
-func (self *Player) Deck() *PlayerDeck {
-	return &self.deck
+func (p *Player) Deck() *PlayerDeck {
+	return &p.deck
 }
 
-func (self *Player) RemoveCard(cardIndex uint) {
-	self.deck.Cards = append(self.deck.Cards[:cardIndex], self.deck.Cards[cardIndex+1:]...)
+func (p *Player) RemoveCard(cardIndex uint) {
+	p.deck.Cards = append(p.deck.Cards[:cardIndex], p.deck.Cards[cardIndex+1:]...)
 }

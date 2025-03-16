@@ -2,8 +2,7 @@ package uno
 
 import (
 	"math/rand"
-	"sort"
-	"time"
+	"slices"
 
 	"github.com/Pato05/unobot/cards"
 )
@@ -13,7 +12,7 @@ const INITIAL_CARDS_COUNT = 7
 // thrown if the deck is empty and there are no (more) cards in the discard pile
 type DeckEmptyError struct{}
 
-func (self DeckEmptyError) Error() string {
+func (e DeckEmptyError) Error() string {
 	return "No more cards in deck."
 }
 
@@ -21,23 +20,23 @@ type PlayerDeck struct {
 	Cards []cards.Card
 }
 
-func (self *PlayerDeck) Sort() {
-	sort.SliceStable(self.Cards, func(i, j int) bool {
-		return self.Cards[i].GetGlobalIndex() < self.Cards[i].GetGlobalIndex()
+func (pd *PlayerDeck) Sort() {
+	slices.SortStableFunc(pd.Cards, func(a, b cards.Card) int {
+		return int(b.GetGlobalIndex()) - int(a.GetGlobalIndex())
 	})
 }
 
-func (self *PlayerDeck) Fill(deck *Deck) {
-	self.Draw(deck, INITIAL_CARDS_COUNT)
-	self.Sort()
+func (pd *PlayerDeck) Fill(deck *Deck) {
+	pd.Draw(deck, INITIAL_CARDS_COUNT)
+	pd.Sort()
 }
 
-func (self *PlayerDeck) Draw(deck *Deck, n uint8) error {
+func (pd *PlayerDeck) Draw(deck *Deck, n uint8) error {
 	cards, err := deck.DrawMulti(n)
 	if err != nil {
 		return err
 	}
-	self.Cards = append(self.Cards, cards...)
+	pd.Cards = append(pd.Cards, cards...)
 	return nil
 }
 
@@ -46,13 +45,13 @@ type Deck struct {
 	Discarded []cards.Card
 }
 
-func (self *Deck) Fill() {
+func (d *Deck) Fill() {
 	// 108 cards total
-	self.Cards = make([]cards.Card, 0)
+	d.Cards = make([]cards.Card, 0)
 
 	// 4 cards of each Wild
-	self.Cards = append(
-		self.Cards,
+	d.Cards = append(
+		d.Cards,
 		cards.Cards[0],
 		cards.Cards[0],
 		cards.Cards[0],
@@ -65,21 +64,21 @@ func (self *Deck) Fill() {
 
 	// two of each color, except the 0, which is only present once
 	// Blue
-	self.Cards = append(self.Cards, cards.Cards[2:15]...)
-	self.Cards = append(self.Cards, cards.Cards[3:15]...)
+	d.Cards = append(d.Cards, cards.Cards[2:15]...)
+	d.Cards = append(d.Cards, cards.Cards[3:15]...)
 	// Yellow
-	self.Cards = append(self.Cards, cards.Cards[15:28]...)
-	self.Cards = append(self.Cards, cards.Cards[16:28]...)
+	d.Cards = append(d.Cards, cards.Cards[15:28]...)
+	d.Cards = append(d.Cards, cards.Cards[16:28]...)
 	// Green
-	self.Cards = append(self.Cards, cards.Cards[28:41]...)
-	self.Cards = append(self.Cards, cards.Cards[29:41]...)
+	d.Cards = append(d.Cards, cards.Cards[28:41]...)
+	d.Cards = append(d.Cards, cards.Cards[29:41]...)
 	// Red
-	self.Cards = append(self.Cards, cards.Cards[41:54]...)
-	self.Cards = append(self.Cards, cards.Cards[42:54]...)
+	d.Cards = append(d.Cards, cards.Cards[41:54]...)
+	d.Cards = append(d.Cards, cards.Cards[42:54]...)
 }
 
-func (self *Deck) DrawOne() (*cards.Card, error) {
-	cards_, err := self.DrawMulti(1)
+func (d *Deck) DrawOne() (*cards.Card, error) {
+	cards_, err := d.DrawMulti(1)
 	if err != nil {
 		return nil, err
 	}
@@ -88,38 +87,37 @@ func (self *Deck) DrawOne() (*cards.Card, error) {
 	return &card, nil
 }
 
-func (self *Deck) Shuffle() {
-	rand.Seed(time.Now().UnixMilli())
-	rand.Shuffle(len(self.Cards), func(i, j int) {
-		self.Cards[i], self.Cards[j] = self.Cards[j], self.Cards[i]
+func (d *Deck) Shuffle() {
+	rand.Shuffle(len(d.Cards), func(i, j int) {
+		d.Cards[i], d.Cards[j] = d.Cards[j], d.Cards[i]
 	})
 }
 
-func (self *Deck) FillFromDiscarded() error {
-	if len(self.Discarded) == 0 {
+func (d *Deck) FillFromDiscarded() error {
+	if len(d.Discarded) == 0 {
 		return DeckEmptyError{}
 	}
-	self.Cards = append(self.Cards, self.Discarded...)
-	self.Discarded = []cards.Card{}
-	self.Shuffle()
+	d.Cards = append(d.Cards, d.Discarded...)
+	d.Discarded = []cards.Card{}
+	d.Shuffle()
 	return nil
 }
 
-func (self *Deck) DrawMulti(n uint8) ([]cards.Card, error) {
-	if int(n) > len(self.Cards) {
-		n -= uint8(len(self.Cards))
-		if err := self.FillFromDiscarded(); err != nil {
+func (d *Deck) DrawMulti(n uint8) ([]cards.Card, error) {
+	if int(n) > len(d.Cards) {
+		n -= uint8(len(d.Cards))
+		if err := d.FillFromDiscarded(); err != nil {
 			return nil, err
 		}
 		if n > 0 {
-			return self.DrawMulti(n)
+			return d.DrawMulti(n)
 		}
 	}
-	cards := self.Cards[0:n]
-	self.Cards = self.Cards[n:]
+	cards := d.Cards[0:n]
+	d.Cards = d.Cards[n:]
 	return cards, nil
 }
 
-func (self *Deck) Discard(cards ...cards.Card) {
-	self.Discarded = append(self.Discarded, cards...)
+func (d *Deck) Discard(cards ...cards.Card) {
+	d.Discarded = append(d.Discarded, cards...)
 }

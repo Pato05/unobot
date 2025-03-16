@@ -21,12 +21,12 @@ import (
 
 type Game *uno.Game[*UnoPlayer]
 
-func (self *BotHandler) handleInlineQuery(inlineQuery *tgbotapi.InlineQuery) error {
+func (bh *BotHandler) handleInlineQuery(inlineQuery *tgbotapi.InlineQuery) error {
 	userID := inlineQuery.From.ID
-	game_, found := self.gameManager.GetPlayerGame(userID)
+	game_, found := bh.gameManager.GetPlayerGame(userID)
 	game, player := game_.Game, game_.UnoPlayer
 	if !found {
-		_, err := self.bot.Send(tgbotapi.InlineConfig{
+		_, err := bh.bot.Send(tgbotapi.InlineConfig{
 			InlineQueryID: inlineQuery.ID,
 			Results: []interface{}{
 				tgbotapi.NewInlineQueryResultArticle(
@@ -41,7 +41,7 @@ func (self *BotHandler) handleInlineQuery(inlineQuery *tgbotapi.InlineQuery) err
 	}
 
 	if !game.Started {
-		_, err := self.bot.Send(tgbotapi.InlineConfig{
+		_, err := bh.bot.Send(tgbotapi.InlineConfig{
 			InlineQueryID: inlineQuery.ID,
 			Results: []interface{}{
 				tgbotapi.NewInlineQueryResultArticle(
@@ -58,7 +58,7 @@ func (self *BotHandler) handleInlineQuery(inlineQuery *tgbotapi.InlineQuery) err
 	isPlayersTurn := userID == game.CurrentPlayer().GetUID()
 
 	if isPlayersTurn && player.ShouldChooseColor() {
-		return self.handleChooseColorInlineQuery(inlineQuery, player, game)
+		return bh.handleChooseColorInlineQuery(inlineQuery, player, game)
 	}
 
 	extra := 0
@@ -128,7 +128,7 @@ func (self *BotHandler) handleInlineQuery(inlineQuery *tgbotapi.InlineQuery) err
 
 	}
 
-	_, err := self.bot.Send(tgbotapi.InlineConfig{
+	_, err := bh.bot.Send(tgbotapi.InlineConfig{
 		InlineQueryID: inlineQuery.ID,
 		Results:       results,
 		CacheTime:     1,
@@ -137,7 +137,7 @@ func (self *BotHandler) handleInlineQuery(inlineQuery *tgbotapi.InlineQuery) err
 	return err
 }
 
-func (self *BotHandler) handleChooseColorInlineQuery(inlineQuery *tgbotapi.InlineQuery, player *UnoPlayer, game *uno.Game[*UnoPlayer]) error {
+func (bh *BotHandler) handleChooseColorInlineQuery(inlineQuery *tgbotapi.InlineQuery, player *UnoPlayer, game *uno.Game[*UnoPlayer]) error {
 	colorsLength := len(choosableColorsString)
 	results := make([]interface{}, colorsLength+1)
 	for i, val := range choosableColorsString {
@@ -169,7 +169,7 @@ func (self *BotHandler) handleChooseColorInlineQuery(inlineQuery *tgbotapi.Inlin
 		},
 	}
 
-	_, err := self.bot.Send(tgbotapi.InlineConfig{
+	_, err := bh.bot.Send(tgbotapi.InlineConfig{
 		InlineQueryID: inlineQuery.ID,
 		Results:       results,
 		CacheTime:     1,
@@ -178,34 +178,34 @@ func (self *BotHandler) handleChooseColorInlineQuery(inlineQuery *tgbotapi.Inlin
 	return err
 }
 
-func (self *BotHandler) handleInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
+func (bh *BotHandler) handleInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
 	id := chosenInlineResult.ResultID
 
 	if strings.HasPrefix(id, "play_") {
-		return self.handlePlayInlineResult(chosenInlineResult)
+		return bh.handlePlayInlineResult(chosenInlineResult)
 	}
 
 	if strings.HasPrefix(id, "choosecolor_") {
-		return self.handleChooseColorInlineResult(chosenInlineResult)
+		return bh.handleChooseColorInlineResult(chosenInlineResult)
 	}
 
 	switch id {
 	case "draw_card":
-		return self.handleDrawInlineResult(chosenInlineResult)
+		return bh.handleDrawInlineResult(chosenInlineResult)
 	case "pass_turn":
-		return self.handlePassInlineResult(chosenInlineResult)
+		return bh.handlePassInlineResult(chosenInlineResult)
 	case "call_bluff":
-		return self.handleBluffInlineResult(chosenInlineResult)
+		return bh.handleBluffInlineResult(chosenInlineResult)
 	}
 
-	self.logger.Print("WARN: unknown inline result id? ", id)
+	bh.logger.Print("WARN: unknown inline result id? ", id)
 
 	return nil
 }
 
-func (self *BotHandler) handlePassInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
+func (bh *BotHandler) handlePassInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
 	user := chosenInlineResult.From
-	playerGame := self.gameManager.players[user.ID]
+	playerGame := bh.gameManager.players[user.ID]
 	game := playerGame.Game
 
 	if game.CurrentPlayer().GetUID() != user.ID {
@@ -216,12 +216,12 @@ func (self *BotHandler) handlePassInlineResult(chosenInlineResult *tgbotapi.Chos
 	// sort deck because user took card and passed the turn
 	playerGame.UnoPlayer.Deck().Sort()
 	game.NextPlayer()
-	return self.nextPlayer(playerGame.GameChatId, game)
+	return bh.nextPlayer(playerGame.GameChatId, game)
 }
 
-func (self *BotHandler) handleDrawInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
+func (bh *BotHandler) handleDrawInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
 	user := chosenInlineResult.From
-	playerGame := self.gameManager.players[user.ID]
+	playerGame := bh.gameManager.players[user.ID]
 	game := playerGame.Game
 
 	if game.CurrentPlayer().GetUID() != user.ID {
@@ -231,17 +231,17 @@ func (self *BotHandler) handleDrawInlineResult(chosenInlineResult *tgbotapi.Chos
 
 	err := game.CurrentPlayerDraw()
 	if err != nil {
-		self.logDebug(err)
-		_, err := self.bot.Send(tgbotapi.NewMessage(playerGame.GameChatId, err.Error()))
+		bh.logDebug(err)
+		_, err := bh.bot.Send(tgbotapi.NewMessage(playerGame.GameChatId, err.Error()))
 		return err
 	}
 
-	return self.nextPlayer(playerGame.GameChatId, game)
+	return bh.nextPlayer(playerGame.GameChatId, game)
 }
 
-func (self *BotHandler) handleBluffInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
+func (bh *BotHandler) handleBluffInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
 	user := chosenInlineResult.From
-	playerGame := self.gameManager.players[user.ID]
+	playerGame := bh.gameManager.players[user.ID]
 	game := playerGame.Game
 
 	if game.CurrentPlayer().GetUID() != user.ID {
@@ -251,7 +251,7 @@ func (self *BotHandler) handleBluffInlineResult(chosenInlineResult *tgbotapi.Cho
 
 	didBluff := game.CallBluff()
 	if didBluff {
-		self.bot.Send(tgbotapi.MessageConfig{
+		bh.bot.Send(tgbotapi.MessageConfig{
 			BaseChat: tgbotapi.BaseChat{
 				ChatID: playerGame.GameChatId,
 			},
@@ -259,7 +259,7 @@ func (self *BotHandler) handleBluffInlineResult(chosenInlineResult *tgbotapi.Cho
 			ParseMode: tgbotapi.ModeHTML,
 		})
 	} else {
-		self.bot.Send(tgbotapi.MessageConfig{
+		bh.bot.Send(tgbotapi.MessageConfig{
 			BaseChat: tgbotapi.BaseChat{
 				ChatID: playerGame.GameChatId,
 			},
@@ -269,10 +269,10 @@ func (self *BotHandler) handleBluffInlineResult(chosenInlineResult *tgbotapi.Cho
 	}
 
 	game.NextPlayer()
-	return self.nextPlayer(playerGame.GameChatId, game)
+	return bh.nextPlayer(playerGame.GameChatId, game)
 }
 
-func (self *BotHandler) handleChooseColorInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
+func (bh *BotHandler) handleChooseColorInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
 	id := chosenInlineResult.ResultID
 	user := chosenInlineResult.From
 	split := strings.Split(id, "_")
@@ -293,7 +293,7 @@ func (self *BotHandler) handleChooseColorInlineResult(chosenInlineResult *tgbota
 		return nil
 	}
 
-	game_, found := self.gameManager.GetPlayerGame(user.ID)
+	game_, found := bh.gameManager.GetPlayerGame(user.ID)
 	if !found {
 		return nil
 	}
@@ -306,41 +306,41 @@ func (self *BotHandler) handleChooseColorInlineResult(chosenInlineResult *tgbota
 	}
 
 	game.ChooseColor(newColor)
-	if err := self.checkPlayerWon(game_); err != nil {
+	if err := bh.checkPlayerWon(game_); err != nil {
 
 	}
 	game.NextPlayer()
 
-	return self.nextPlayer(game_.GameChatId, game)
+	return bh.nextPlayer(game_.GameChatId, game)
 }
 
-func (self *BotHandler) handlePlayInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
+func (bh *BotHandler) handlePlayInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
 	id := chosenInlineResult.ResultID
 	user := chosenInlineResult.From
 	split := strings.Split(id, "_")
 	if len(split) != 3 {
-		self.logDebug("Wrong ResultID:", id)
+		bh.logDebug("Wrong ResultID:", id)
 		return nil
 	}
 
 	cardIndex, err := strconv.Atoi(split[1])
 	if err != nil {
 		// fail silently
-		self.logDebug(err)
+		bh.logDebug(err)
 		return nil
 	}
 
 	digest, err := strconv.Atoi(split[2])
 	if err != nil {
-		self.logDebug(err)
+		bh.logDebug(err)
 		return nil
 	}
 
-	playerGame := self.gameManager.players[user.ID]
+	playerGame := bh.gameManager.players[user.ID]
 	game, player := playerGame.Game, playerGame.UnoPlayer
 
 	if len(player.Deck().Cards) < cardIndex {
-		self.logDebug("Wrong index: got ", cardIndex, ", array is smaller than given index.")
+		bh.logDebug("Wrong index: got ", cardIndex, ", array is smaller than given index.")
 		return nil
 	}
 	card := player.Deck().Cards[cardIndex]
@@ -349,7 +349,7 @@ func (self *BotHandler) handlePlayInlineResult(chosenInlineResult *tgbotapi.Chos
 
 	if d != digest {
 		// current card's index does not match previous card
-		self.logDebug("Wrong card color and index: expecting ", d, " got ", digest)
+		bh.logDebug("Wrong card color and index: expecting ", d, " got ", digest)
 		return nil
 	}
 
@@ -360,7 +360,7 @@ func (self *BotHandler) handlePlayInlineResult(chosenInlineResult *tgbotapi.Chos
 
 	err = game.PlayCard(&card)
 	if err != nil {
-		_, err := self.bot.Send(tgbotapi.NewMessage(playerGame.GameChatId, err.Error()))
+		_, err := bh.bot.Send(tgbotapi.NewMessage(playerGame.GameChatId, err.Error()))
 		return err
 	}
 
@@ -368,68 +368,68 @@ func (self *BotHandler) handlePlayInlineResult(chosenInlineResult *tgbotapi.Chos
 	game.Deck.Discard(card)
 
 	if player.ShouldShoutUNO() {
-		self.bot.Send(tgbotapi.NewMessage(playerGame.GameChatId, "UNO!"))
+		bh.bot.Send(tgbotapi.NewMessage(playerGame.GameChatId, "UNO!"))
 	}
 
 	if player.ShouldChooseColor() {
 		msg := tgbotapi.NewMessage(playerGame.GameChatId, "Please choose a color")
 		msg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
 			InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{
-				self.NewInlineKeyboardButtonSwitchCurrentChat("Choose a color", ""),
+				bh.NewInlineKeyboardButtonSwitchCurrentChat("Choose a color", ""),
 			}},
 		}
-		_, err := self.bot.Send(msg)
+		_, err := bh.bot.Send(msg)
 		return err
 	}
 
-	if err := self.checkPlayerWon(playerGame); err != nil {
+	if err := bh.checkPlayerWon(playerGame); err != nil {
 		return err
 	}
 
 	game.NextPlayer()
 
-	return self.nextPlayer(playerGame.GameChatId, playerGame.Game)
+	return bh.nextPlayer(playerGame.GameChatId, playerGame.Game)
 }
 
-func (self *BotHandler) playerWonMsg(chatId int64, player *UnoPlayer) error {
-	return self.SendMessageHTML(chatId, player.HTML()+" won!")
+func (bh *BotHandler) playerWonMsg(chatId int64, player *UnoPlayer) error {
+	return bh.SendMessageHTML(chatId, player.HTML()+" won!")
 }
 
-func (self *BotHandler) playerWon(chatId int64, game *uno.Game[*UnoPlayer], player *UnoPlayer) error {
-	self.playerWonMsg(chatId, player)
-	delete(self.gameManager.players, player.GetUID())
+func (bh *BotHandler) playerWon(chatId int64, game *uno.Game[*UnoPlayer], player *UnoPlayer) error {
+	bh.playerWonMsg(chatId, player)
+	delete(bh.gameManager.players, player.GetUID())
 	err := game.CurrentPlayerWon()
 	if err != nil {
-		self.SendMessage(chatId, "Game ended!")
-		self.gameManager.DeleteGame(chatId)
+		bh.SendMessage(chatId, "Game ended!")
+		bh.gameManager.DeleteGame(chatId)
 		return err
 	}
 
 	return nil
 }
 
-func (self *BotHandler) checkPlayerWon(playerGame PlayerGame) error {
+func (bh *BotHandler) checkPlayerWon(playerGame PlayerGame) error {
 	if playerGame.UnoPlayer.DidWin() {
-		err := self.playerWon(playerGame.GameChatId, playerGame.Game, playerGame.UnoPlayer)
+		err := bh.playerWon(playerGame.GameChatId, playerGame.Game, playerGame.UnoPlayer)
 		if err != nil {
 			return err
 		}
 
-		return self.nextPlayer(playerGame.GameChatId, playerGame.Game)
+		return bh.nextPlayer(playerGame.GameChatId, playerGame.Game)
 	}
 
 	return nil
 }
 
-func (self *BotHandler) nextPlayer(chatId int64, game *uno.Game[*UnoPlayer]) error {
+func (bh *BotHandler) nextPlayer(chatId int64, game *uno.Game[*UnoPlayer]) error {
 	nextPlayer := game.CurrentPlayer()
-	_, err := self.bot.Send(tgbotapi.MessageConfig{
+	_, err := bh.bot.Send(tgbotapi.MessageConfig{
 		BaseChat: tgbotapi.BaseChat{
 			ChatID:           chatId,
 			ReplyToMessageID: 0,
 			ReplyMarkup: tgbotapi.InlineKeyboardMarkup{
 				InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{
-					self.NewInlineKeyboardButtonSwitchCurrentChat("Play a card", ""),
+					bh.NewInlineKeyboardButtonSwitchCurrentChat("Play a card", ""),
 				}},
 			},
 		},

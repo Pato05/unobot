@@ -16,57 +16,57 @@ type GameManager struct {
 	players map[int64]PlayerGame
 }
 
-func (self *GameManager) GetGame(chatId int64) (*uno.Game[*UnoPlayer], error) {
-	val, ok := self.games[chatId]
+func (gm *GameManager) GetGame(chatId int64) (*uno.Game[*UnoPlayer], error) {
+	val, ok := gm.games[chatId]
 	if !ok {
 		return nil, NoGameError{}
 	}
 	return val, nil
 }
 
-func (self *GameManager) GetPlayerGame(userId int64) (PlayerGame, bool) {
-	player, found := self.players[userId]
+func (gm *GameManager) GetPlayerGame(userId int64) (PlayerGame, bool) {
+	player, found := gm.players[userId]
 	return player, found
 }
-func (self *GameManager) assertGameDoesntExist(chatId int64) error {
-	_, ok := self.games[chatId]
+func (gm *GameManager) assertGameDoesntExist(chatId int64) error {
+	_, ok := gm.games[chatId]
 	if ok {
 		return OngoingGameError{}
 	}
 	return nil
 }
 
-func (self *GameManager) NewGame(chatId int64, userId int64) error {
-	if err := self.assertGameDoesntExist(chatId); err != nil {
+func (gm *GameManager) NewGame(chatId int64, userId int64) error {
+	if err := gm.assertGameDoesntExist(chatId); err != nil {
 		return err
 	}
-	self.games[chatId] = &uno.Game[*UnoPlayer]{
+	gm.games[chatId] = &uno.Game[*UnoPlayer]{
 		GameCreatorUID: userId,
 	}
 	return nil
 }
 
-func (self *GameManager) DeleteGame(chatId int64) error {
-	game, err := self.GetGame(chatId)
+func (gm *GameManager) DeleteGame(chatId int64) error {
+	game, err := gm.GetGame(chatId)
 	if err != nil {
 		return err
 	}
 
 	for _, player := range game.Players {
-		delete(self.players, player.GetUID())
+		delete(gm.players, player.GetUID())
 	}
 
-	delete(self.games, chatId)
+	delete(gm.games, chatId)
 	return nil
 }
 
-func (self *GameManager) PlayerJoin(chatId int64, user *tgbotapi.User) error {
-	game, err := self.GetGame(chatId)
+func (gm *GameManager) PlayerJoin(chatId int64, user *tgbotapi.User) error {
+	game, err := gm.GetGame(chatId)
 	if err != nil {
 		return err
 	}
 
-	if _, ok := self.GetPlayerGame(user.ID); ok {
+	if _, ok := gm.GetPlayerGame(user.ID); ok {
 		return PlayerAlreadyInOtherGameError{}
 	}
 
@@ -81,7 +81,7 @@ func (self *GameManager) PlayerJoin(chatId int64, user *tgbotapi.User) error {
 		return err
 	}
 
-	self.players[user.ID] = PlayerGame{
+	gm.players[user.ID] = PlayerGame{
 		Game:       game,
 		UnoPlayer:  player,
 		GameChatId: chatId,
@@ -91,13 +91,13 @@ func (self *GameManager) PlayerJoin(chatId int64, user *tgbotapi.User) error {
 }
 
 // removes a player from a game.
-func (self *GameManager) PlayerLeave(chatId int64, userId int64) (*UnoPlayer, error) {
-	game, err := self.GetGame(chatId)
+func (gm *GameManager) PlayerLeave(chatId int64, userId int64) (*UnoPlayer, error) {
+	game, err := gm.GetGame(chatId)
 	if err != nil {
 		return nil, PlayerNotInGameError{}
 	}
 
-	playerGame, ok := self.GetPlayerGame(userId)
+	playerGame, ok := gm.GetPlayerGame(userId)
 	if !ok {
 		return nil, PlayerNotInGameError{}
 	}
@@ -107,16 +107,16 @@ func (self *GameManager) PlayerLeave(chatId int64, userId int64) (*UnoPlayer, er
 	switch err.(type) {
 	case uno.GameDisbandedLastPlayerWon:
 	default:
-		delete(self.players, userId)
+		delete(gm.players, userId)
 		return nil, err
 	}
 
-	self.DeleteGame(chatId)
+	gm.DeleteGame(chatId)
 	return game.CurrentPlayer(), err
 }
 
-func (self *GameManager) GetPlayersInGame(chatId int64) ([]*UnoPlayer, error) {
-	game, err := self.GetGame(chatId)
+func (gm *GameManager) GetPlayersInGame(chatId int64) ([]*UnoPlayer, error) {
+	game, err := gm.GetGame(chatId)
 	if err != nil {
 		return nil, err
 	}

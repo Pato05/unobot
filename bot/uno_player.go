@@ -11,10 +11,10 @@ type UnoPlayer struct {
 	uno.Player
 }
 
-func (self *UnoPlayer) HTML() string {
-	return "<a href=\"tg://user?id=" + strconv.Itoa(int(self.Id)) + "\">" + html.EscapeString(self.Name) + "</a>"
+func (p *UnoPlayer) HTML() string {
+	return "<a href=\"tg://user?id=" + strconv.Itoa(int(p.Id)) + "\">" + html.EscapeString(p.Name) + "</a>"
 }
 
-func (self *UnoPlayer) EscapedName() string {
-	return html.EscapeString(self.Name)
+func (p *UnoPlayer) EscapedName() string {
+	return html.EscapeString(p.Name)
 }

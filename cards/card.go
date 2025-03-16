@@ -12,32 +12,32 @@ type CardIDs struct {
 	Grey   string
 }
 
-func (self *Card) IsSpecial() bool {
-	return self.Special != Special_None
+func (c *Card) IsSpecial() bool {
+	return c.Special != Special_None
 }
 
 // unless self.Color is Black and it is the last card available in the deck
-func (self *Card) IsPlayable(prevCard *Card) bool {
-	if self.Color == Wild {
+func (c *Card) IsPlayable(prevCard *Card) bool {
+	if c.Color == Wild {
 		return true
 	}
 
 	if prevCard.Special == Special_PlusFour || prevCard.Special == Special_Colorchooser {
-		return self.Color == prevCard.Color
+		return c.Color == prevCard.Color
 	}
 
-	return self.Color == prevCard.Color || self.CardIndex == prevCard.CardIndex
+	return c.Color == prevCard.Color || c.CardIndex == prevCard.CardIndex
 }
 
-func (self *Card) GetFileID() CardIDs {
-	return CardFileIDsByColor[self.Color][self.CardIndex]
+func (c *Card) GetFileID() CardIDs {
+	return CardFileIDsByColor[c.Color][c.CardIndex]
 }
 
 // returns index for the "Cards" map
-func (self *Card) GetGlobalIndex() uint16 {
-	globIndex := uint16(self.CardIndex)
-	if self.Color != Wild {
-		globIndex = globIndex + (13 * (uint16(self.Color) - 1)) + 2
+func (c *Card) GetGlobalIndex() uint16 {
+	globIndex := uint16(c.CardIndex)
+	if c.Color != Wild {
+		globIndex = globIndex + (13 * (uint16(c.Color) - 1)) + 2
 	}
 	return globIndex
 }

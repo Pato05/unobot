@@ -8,52 +8,52 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-func (self *BotHandler) handleGroupMessage(message *tgbotapi.Message) error {
-	command := self.ParseCommand(message.Text)
+func (bh *BotHandler) handleGroupMessage(message *tgbotapi.Message) error {
+	command := bh.ParseCommand(message.Text)
 
 	switch command {
 	case "gonew":
-		return self.handleNewGame(message)
+		return bh.handleNewGame(message)
 	case "gojoin":
-		return self.handleJoinGame(message)
+		return bh.handleJoinGame(message)
 	case "goleave":
-		return self.handleLeaveGame(message)
+		return bh.handleLeaveGame(message)
 	case "goplayers":
-		return self.handleGetPlayers(message)
+		return bh.handleGetPlayers(message)
 	case "gostart":
-		return self.handleGameStart(message)
+		return bh.handleGameStart(message)
 	case "goopen":
-		return self.handleOpenLobby(message)
+		return bh.handleOpenLobby(message)
 	case "goclose":
-		return self.handleCloseLobby(message)
+		return bh.handleCloseLobby(message)
 	case "gokill":
-		return self.handleKillGame(message)
+		return bh.handleKillGame(message)
 	case "goinfo":
-		return self.handleGameInfo(message)
+		return bh.handleGameInfo(message)
 	}
 
 	return nil
 }
 
-func (self *BotHandler) handleNewGame(message *tgbotapi.Message) error {
-	err := self.gameManager.NewGame(message.Chat.ID, message.From.ID)
+func (bh *BotHandler) handleNewGame(message *tgbotapi.Message) error {
+	err := bh.gameManager.NewGame(message.Chat.ID, message.From.ID)
 	if err != nil {
-		_, err := self.bot.Send(tgbotapi.NewMessage(message.Chat.ID, err.Error()))
+		_, err := bh.bot.Send(tgbotapi.NewMessage(message.Chat.ID, err.Error()))
 		return err
 	}
 
-	_, err = self.bot.Send(tgbotapi.NewMessage(message.Chat.ID, messages.GAME_CREATED_SUCCESS))
+	_, err = bh.bot.Send(tgbotapi.NewMessage(message.Chat.ID, messages.GAME_CREATED_SUCCESS))
 	return err
 }
 
-func (self *BotHandler) handleJoinGame(message *tgbotapi.Message) error {
-	err := self.gameManager.PlayerJoin(message.Chat.ID, message.From)
+func (bh *BotHandler) handleJoinGame(message *tgbotapi.Message) error {
+	err := bh.gameManager.PlayerJoin(message.Chat.ID, message.From)
 	if err != nil {
-		_, err := self.bot.Send(tgbotapi.NewMessage(message.Chat.ID, err.Error()))
+		_, err := bh.bot.Send(tgbotapi.NewMessage(message.Chat.ID, err.Error()))
 		return err
 	}
 
-	_, err = self.bot.Send(tgbotapi.MessageConfig{
+	_, err = bh.bot.Send(tgbotapi.MessageConfig{
 		BaseChat: tgbotapi.BaseChat{
 			ChatID:           message.Chat.ID,
 			ReplyToMessageID: message.MessageID,
@@ -63,44 +63,44 @@ func (self *BotHandler) handleJoinGame(message *tgbotapi.Message) error {
 	return err
 }
 
-func (self *BotHandler) handleLeaveGame(message *tgbotapi.Message) error {
-	lastPlayer, _ := self.gameManager.PlayerLeave(message.Chat.ID, message.From.ID)
+func (bh *BotHandler) handleLeaveGame(message *tgbotapi.Message) error {
+	lastPlayer, _ := bh.gameManager.PlayerLeave(message.Chat.ID, message.From.ID)
 
-	err := self.ReplyMessage(message.MessageID, message.Chat.ID, messages.GAME_LEAVE_SUCCESS)
+	err := bh.ReplyMessage(message.MessageID, message.Chat.ID, messages.GAME_LEAVE_SUCCESS)
 
 	if err != nil {
-		self.logDebug(err)
+		bh.logDebug(err)
 	}
 
 	if lastPlayer != nil {
-		return self.playerWonMsg(message.Chat.ID, lastPlayer)
+		return bh.playerWonMsg(message.Chat.ID, lastPlayer)
 	}
 
 	return nil
 }
 
-func (self *BotHandler) handleGetPlayers(message *tgbotapi.Message) error {
-	players, err := self.gameManager.GetPlayersInGame(message.Chat.ID)
+func (bh *BotHandler) handleGetPlayers(message *tgbotapi.Message) error {
+	players, err := bh.gameManager.GetPlayersInGame(message.Chat.ID)
 	if err != nil {
-		return self.SendMessage(message.Chat.ID, err.Error())
+		return bh.SendMessage(message.Chat.ID, err.Error())
 	}
 	if len(players) == 0 {
-		return self.SendMessage(message.Chat.ID, messages.NO_PLAYERS_IN_GAME_ERROR)
+		return bh.SendMessage(message.Chat.ID, messages.NO_PLAYERS_IN_GAME_ERROR)
 	}
 	var response strings.Builder
 	for _, player := range players {
 		response.WriteString("- " + player.HTML() + "\n")
 	}
-	return self.SendMessageHTML(message.Chat.ID, response.String())
+	return bh.SendMessageHTML(message.Chat.ID, response.String())
 }
 
-func (self *BotHandler) handleGameInfo(message *tgbotapi.Message) error {
-	game, err := self.gameManager.GetGame(message.Chat.ID)
+func (bh *BotHandler) handleGameInfo(message *tgbotapi.Message) error {
+	game, err := bh.gameManager.GetGame(message.Chat.ID)
 	if err != nil {
-		return self.SendMessage(message.Chat.ID, err.Error())
+		return bh.SendMessage(message.Chat.ID, err.Error())
 	}
 
-	return self.SendMessage(message.Chat.ID, fmt.Sprintf(
+	return bh.SendMessage(message.Chat.ID, fmt.Sprintf(
 		"Game Info:\n"+
 			"  Deck:\n"+
 			"    Available cards: %d\n"+
@@ -110,69 +110,69 @@ func (self *BotHandler) handleGameInfo(message *tgbotapi.Message) error {
 	))
 }
 
-func (self *BotHandler) handleGameStart(message *tgbotapi.Message) error {
-	game, err := self.gameManager.GetGame(message.Chat.ID)
+func (bh *BotHandler) handleGameStart(message *tgbotapi.Message) error {
+	game, err := bh.gameManager.GetGame(message.Chat.ID)
 	if err != nil {
-		return self.SendMessage(message.Chat.ID, err.Error())
+		return bh.SendMessage(message.Chat.ID, err.Error())
 	}
 	firstCard, err := game.Start()
 	if err != nil {
-		return self.SendMessage(message.Chat.ID, err.Error())
+		return bh.SendMessage(message.Chat.ID, err.Error())
 	}
-	_, err = self.bot.Send(tgbotapi.NewSticker(message.Chat.ID, tgbotapi.FileID(firstCard.GetFileID().Normal)))
+	_, err = bh.bot.Send(tgbotapi.NewSticker(message.Chat.ID, tgbotapi.FileID(firstCard.GetFileID().Normal)))
 	if err != nil {
 		return err
 	}
 	game.NextPlayer()
-	return self.nextPlayer(message.Chat.ID, game)
+	return bh.nextPlayer(message.Chat.ID, game)
 }
 
-func (self *BotHandler) handleCloseLobby(message *tgbotapi.Message) error {
-	game, err := self.gameManager.GetGame(message.Chat.ID)
+func (bh *BotHandler) handleCloseLobby(message *tgbotapi.Message) error {
+	game, err := bh.gameManager.GetGame(message.Chat.ID)
 	if err != nil {
-		return self.SendMessage(message.Chat.ID, err.Error())
+		return bh.SendMessage(message.Chat.ID, err.Error())
 	}
 
 	if game.GameCreatorUID != message.From.ID {
-		return self.ReplyMessage(message.MessageID, message.Chat.ID, "You're not allowed to do this!")
+		return bh.ReplyMessage(message.MessageID, message.Chat.ID, "You're not allowed to do this!")
 	}
 
 	err = game.CloseLobby()
 	if err != nil {
-		return self.SendMessage(message.Chat.ID, err.Error())
+		return bh.SendMessage(message.Chat.ID, err.Error())
 	}
 
-	return self.SendMessage(message.Chat.ID, messages.LOBBY_CLOSED_SUCCESS)
+	return bh.SendMessage(message.Chat.ID, messages.LOBBY_CLOSED_SUCCESS)
 }
 
-func (self *BotHandler) handleOpenLobby(message *tgbotapi.Message) error {
-	game, err := self.gameManager.GetGame(message.Chat.ID)
+func (bh *BotHandler) handleOpenLobby(message *tgbotapi.Message) error {
+	game, err := bh.gameManager.GetGame(message.Chat.ID)
 	if err != nil {
-		return self.SendMessage(message.Chat.ID, err.Error())
+		return bh.SendMessage(message.Chat.ID, err.Error())
 	}
 
 	if game.GameCreatorUID != message.From.ID {
-		return self.ReplyMessage(message.MessageID, message.Chat.ID, "You're not allowed to do this!")
+		return bh.ReplyMessage(message.MessageID, message.Chat.ID, "You're not allowed to do this!")
 	}
 
 	err = game.OpenLobby()
 	if err != nil {
-		return self.SendMessage(message.Chat.ID, err.Error())
+		return bh.SendMessage(message.Chat.ID, err.Error())
 	}
 
-	return self.SendMessage(message.Chat.ID, messages.LOBBY_OPEN_SUCCESS)
+	return bh.SendMessage(message.Chat.ID, messages.LOBBY_OPEN_SUCCESS)
 }
 
-func (self *BotHandler) handleKillGame(message *tgbotapi.Message) error {
-	game, err := self.gameManager.GetGame(message.Chat.ID)
+func (bh *BotHandler) handleKillGame(message *tgbotapi.Message) error {
+	game, err := bh.gameManager.GetGame(message.Chat.ID)
 	if err != nil {
-		return self.SendMessage(message.Chat.ID, err.Error())
+		return bh.SendMessage(message.Chat.ID, err.Error())
 	}
 
 	if game.GameCreatorUID != message.From.ID {
-		return self.ReplyMessage(message.MessageID, message.Chat.ID, "You're not allowed to do this!")
+		return bh.ReplyMessage(message.MessageID, message.Chat.ID, "You're not allowed to do this!")
 	}
 
-	self.gameManager.DeleteGame(message.Chat.ID)
-	return self.SendMessage(message.Chat.ID, "Game killed successfully.")
+	bh.gameManager.DeleteGame(message.Chat.ID)
+	return bh.SendMessage(message.Chat.ID, "Game killed successfully.")
 }

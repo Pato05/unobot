@@ -32,7 +32,7 @@ func NewBotHandler(bot *tgbotapi.BotAPI, verbose bool) *BotHandler {
 	}
 }
 
-func (self *BotHandler) ParseCommand(message string) string {
+func (bh *BotHandler) ParseCommand(message string) string {
 	// there is actually a parser for this with `update.Message.Command()`, but since
 	// telegram sends UTF-16 entities, and that function treats it as UTF-8, it is not trustable.
 	// moreover, that function doesn't check if the username after the "@" symbol matches
@@ -42,7 +42,7 @@ func (self *BotHandler) ParseCommand(message string) string {
 	}
 
 	message = strings.ToLower(message)
-	idx := strings.Index(message, "@"+strings.ToLower(self.bot.Self.UserName))
+	idx := strings.Index(message, "@"+strings.ToLower(bh.bot.Self.UserName))
 	if idx == -1 {
 		idx = strings.Index(message, " ")
 	}
@@ -57,25 +57,25 @@ func (self *BotHandler) ParseCommand(message string) string {
 // dispatches the update according to its fields,
 // creating a copy of the structs so that the variables
 // are not replaced by a subsequent update.
-func (self *BotHandler) ProcessUpdate(update tgbotapi.Update) error {
+func (bh *BotHandler) ProcessUpdate(update tgbotapi.Update) error {
 	if update.Message != nil {
 		// create a copy of the struct
 		msg := *update.Message
 		if update.Message.Chat.ID > 0 {
-			return self.handlePrivateMessage(&msg)
+			return bh.handlePrivateMessage(&msg)
 		}
 
-		return self.handleGroupMessage(&msg)
+		return bh.handleGroupMessage(&msg)
 	}
 
 	if update.InlineQuery != nil {
 		inlineQuery := *update.InlineQuery
-		return self.handleInlineQuery(&inlineQuery)
+		return bh.handleInlineQuery(&inlineQuery)
 	}
 
 	if update.ChosenInlineResult != nil {
 		inlineResult := *update.ChosenInlineResult
-		return self.handleInlineResult(&inlineResult)
+		return bh.handleInlineResult(&inlineResult)
 	}
 
 	return nil
@@ -83,53 +83,53 @@ func (self *BotHandler) ProcessUpdate(update tgbotapi.Update) error {
 
 /// Helper methods
 
-func (self *BotHandler) SendMessage(chatId int64, text string) error {
+func (bh *BotHandler) SendMessage(chatId int64, text string) error {
 	msg := tgbotapi.NewMessage(chatId, text)
 
-	_, err := self.bot.Send(msg)
+	_, err := bh.bot.Send(msg)
 	return err
 }
 
-func (self *BotHandler) SendMessageHTML(chatId int64, text string) error {
+func (bh *BotHandler) SendMessageHTML(chatId int64, text string) error {
 	msg := tgbotapi.NewMessage(chatId, text)
 	msg.ParseMode = tgbotapi.ModeHTML
 
-	_, err := self.bot.Send(msg)
+	_, err := bh.bot.Send(msg)
 	return err
 }
 
-func (self *BotHandler) ReplyMessage(replyToMessageId int, chatId int64, text string) error {
+func (bh *BotHandler) ReplyMessage(replyToMessageId int, chatId int64, text string) error {
 	msg := tgbotapi.NewMessage(chatId, text)
 	msg.BaseChat.ReplyToMessageID = replyToMessageId
 
-	_, err := self.bot.Send(msg)
+	_, err := bh.bot.Send(msg)
 	return err
 }
 
-func (self *BotHandler) ReplyMessageHTML(replyToMessageId int, chatId int64, text string) error {
+func (bh *BotHandler) ReplyMessageHTML(replyToMessageId int, chatId int64, text string) error {
 	msg := tgbotapi.NewMessage(chatId, text)
 	msg.ParseMode = tgbotapi.ModeHTML
 	msg.BaseChat.ReplyToMessageID = replyToMessageId
 
-	_, err := self.bot.Send(msg)
+	_, err := bh.bot.Send(msg)
 	return err
 }
 
-func (self *BotHandler) NewInlineKeyboardButtonSwitchCurrentChat(text string, switchInlineQuery string) tgbotapi.InlineKeyboardButton {
+func (bh *BotHandler) NewInlineKeyboardButtonSwitchCurrentChat(text string, switchInlineQuery string) tgbotapi.InlineKeyboardButton {
 	return tgbotapi.InlineKeyboardButton{
 		Text:                         text,
 		SwitchInlineQueryCurrentChat: &switchInlineQuery,
 	}
 }
 
-func (self *BotHandler) logDebug(v ...any) {
-	if self.logger != nil {
-		self.logger.Print(v...)
+func (bh *BotHandler) logDebug(v ...any) {
+	if bh.logger != nil {
+		bh.logger.Print(v...)
 	}
 }
 
-func (self *BotHandler) logDebugf(format string, v ...any) {
-	if self.logger != nil {
-		self.logger.Printf(format, v...)
+func (bh *BotHandler) logDebugf(format string, v ...any) {
+	if bh.logger != nil {
+		bh.logger.Printf(format, v...)
 	}
 }
