@@ -32,11 +32,17 @@ func (pd *PlayerDeck) Fill(deck *Deck) {
 }
 
 func (pd *PlayerDeck) Draw(deck *Deck, n uint8) error {
-	cards, err := deck.DrawMulti(n)
+	newCards, err := deck.DrawMulti(n)
 	if err != nil {
 		return err
 	}
-	pd.Cards = append(pd.Cards, cards...)
+
+	// put the new cards on the "top" of the deck
+	newSlice := make([]cards.Card, int(n)+len(pd.Cards))
+	copy(newSlice[:n], newCards)
+	copy(newSlice[n:], pd.Cards)
+	pd.Cards = newSlice
+
 	return nil
 }
 

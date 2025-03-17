@@ -123,8 +123,10 @@ func (bh *BotHandler) handleGameStart(message *tgbotapi.Message) error {
 	if err != nil {
 		return err
 	}
+
 	game.NextPlayer()
-	return bh.nextPlayer(message.Chat.ID, game)
+	game.SetTimer(bh)
+	return bh.announceNextPlayer(game)
 }
 
 func (bh *BotHandler) handleCloseLobby(message *tgbotapi.Message) error {

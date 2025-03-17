@@ -225,7 +225,8 @@ func (g *Game[T]) PreAutoSkipPlayer() {
 	player := g.CurrentPlayer()
 	// if the player should choose the colour (wild card played), let it choose a random colour
 	if player.ShouldChooseColor() {
-		g.PreviousCard.Color = cards.CardColor(rand.Intn(int(cards.Red)) + int(cards.Blue))
+		newColor := cards.CardColor(rand.Intn(int(cards.Red)) + int(cards.Blue))
+		g.ChooseColor(newColor)
 	}
 }
 
@@ -339,11 +340,12 @@ func (g *Game[T]) PlayCard(card *cards.Card) error {
 }
 
 func (g *Game[T]) ChooseColor(color cards.CardColor) {
-	if !g.CurrentPlayer().ShouldChooseColor() {
+	player := g.CurrentPlayer()
+	if !player.ShouldChooseColor() {
 		return
 	}
 
-	g.CurrentPlayer().SetShouldChooseColor(false)
+	player.SetShouldChooseColor(false)
 	// Choose color by changing the previous card's color;
 	// the previous card being a Wild (Colorchooser or PlusFour)
 	g.PreviousCard.Color = color

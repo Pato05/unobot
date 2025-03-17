@@ -1,22 +1,24 @@
 package bot
 
 import (
+	"time"
+
 	"github.com/Pato05/unobot/uno"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type PlayerGame struct {
-	Game       *uno.Game[*UnoPlayer]
-	UnoPlayer  *UnoPlayer
-	GameChatId int64
+	Game      *UnoGame
+	UnoPlayer *UnoPlayer
+	LastTimer *time.Timer
 }
 
 type GameManager struct {
-	games   map[int64]*uno.Game[*UnoPlayer]
+	games   map[int64]*UnoGame
 	players map[int64]PlayerGame
 }
 
-func (gm *GameManager) GetGame(chatId int64) (*uno.Game[*UnoPlayer], error) {
+func (gm *GameManager) GetGame(chatId int64) (*UnoGame, error) {
 	val, ok := gm.games[chatId]
 	if !ok {
 		return nil, NoGameError{}
@@ -24,10 +26,11 @@ func (gm *GameManager) GetGame(chatId int64) (*uno.Game[*UnoPlayer], error) {
 	return val, nil
 }
 
-func (gm *GameManager) GetPlayerGame(userId int64) (PlayerGame, bool) {
+func (gm *GameManager) GetPlayerGame(userId int64) (*PlayerGame, bool) {
 	player, found := gm.players[userId]
-	return player, found
+	return &player, found
 }
+
 func (gm *GameManager) assertGameDoesntExist(chatId int64) error {
 	_, ok := gm.games[chatId]
 	if ok {
@@ -40,9 +43,14 @@ func (gm *GameManager) NewGame(chatId int64, userId int64) error {
 	if err := gm.assertGameDoesntExist(chatId); err != nil {
 		return err
 	}
-	gm.games[chatId] = &uno.Game[*UnoPlayer]{
-		GameCreatorUID: userId,
+
+	gm.games[chatId] = &UnoGame{
+		Game: uno.Game[*UnoPlayer]{
+			GameCreatorUID: userId,
+		},
+		ChatId: chatId,
 	}
+
 	return nil
 }
 
@@ -61,20 +69,21 @@ func (gm *GameManager) DeleteGame(chatId int64) error {
 }
 
 func (gm *GameManager) PlayerJoin(chatId int64, user *tgbotapi.User) error {
+	if _, ok := gm.GetPlayerGame(user.ID); ok {
+		return PlayerAlreadyInOtherGameError{}
+	}
+
 	game, err := gm.GetGame(chatId)
 	if err != nil {
 		return err
 	}
 
-	if _, ok := gm.GetPlayerGame(user.ID); ok {
-		return PlayerAlreadyInOtherGameError{}
-	}
-
 	player := &UnoPlayer{
-		uno.Player{
-			Name: user.FirstName,
-			Id:   user.ID,
+		Player: uno.Player{
+			Id: user.ID,
 		},
+
+		Name: user.FirstName,
 	}
 
 	if err := game.JoinPlayer(player); err != nil {
@@ -82,9 +91,8 @@ func (gm *GameManager) PlayerJoin(chatId int64, user *tgbotapi.User) error {
 	}
 
 	gm.players[user.ID] = PlayerGame{
-		Game:       game,
-		UnoPlayer:  player,
-		GameChatId: chatId,
+		Game:      game,
+		UnoPlayer: player,
 	}
 
 	return nil

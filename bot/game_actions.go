@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/Pato05/unobot/cards"
-	"github.com/Pato05/unobot/uno"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -57,7 +56,7 @@ func PassAction() tgbotapi.InlineQueryResultCachedSticker {
 	}
 }
 
-func GetGameInfoStr(game *uno.Game[*UnoPlayer]) string {
+func GetGameInfoStr(game *UnoGame) string {
 	currentPlayer := game.CurrentPlayer()
 	lastCard := game.PreviousCard
 	var cardStr string
@@ -109,7 +108,7 @@ func GetGameInfoStr(game *uno.Game[*UnoPlayer]) string {
 
 }
 
-func GameInfoAction(game *uno.Game[*UnoPlayer]) tgbotapi.InlineQueryResultCachedSticker {
+func GameInfoAction(game *UnoGame) tgbotapi.InlineQueryResultCachedSticker {
 	return tgbotapi.InlineQueryResultCachedSticker{
 		Type:      "sticker",
 		ID:        "gameinfo",

@@ -18,6 +18,6 @@ const (
 	LOBBY_CLOSED_SUCCESS                 = "The lobby has been closed."
 	LOBBY_OPEN_SUCCESS                   = "The lobby is now open to new players!"
 	GAME_DISBANDED_NO_PLAYERS            = "The game was disbanded, not enough players."
-	GAME_DISBANDED_LAST_PLAYER_WON       = "The game was disbanded, the last player won."
+	GAME_DISBANDED_LAST_PLAYER_WON       = "Game ended."
 	CANT_JOIN_LOBBY_CLOSED               = "Can't join the game. The lobby is closed."
 )

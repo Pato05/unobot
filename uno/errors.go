@@ -53,7 +53,7 @@ func (e GameDisbandedNoPlayers) Error() string {
 type GameDisbandedLastPlayerWon struct{}
 
 func (e GameDisbandedLastPlayerWon) Error() string {
-	return messages.GAME_DISBANDED_NO_PLAYERS
+	return messages.GAME_DISBANDED_LAST_PLAYER_WON
 }
 
 type LobbyClosedError struct{}

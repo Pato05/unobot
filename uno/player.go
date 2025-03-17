@@ -1,5 +1,11 @@
 package uno
 
+import (
+	"time"
+
+	"github.com/Pato05/unobot/constants"
+)
+
 type IPlayer interface {
 	ShouldChooseColor() bool
 	CardCount() int
@@ -12,9 +18,10 @@ type IPlayer interface {
 
 type Player struct {
 	Id                int64
-	Name              string
 	deck              PlayerDeck
 	shouldChooseColor bool
+	// How many times this player has been automatically skipped
+	AutoSkipCount int
 }
 
 func (p *Player) ShouldChooseColor() bool {
@@ -47,4 +54,16 @@ func (p *Player) Deck() *PlayerDeck {
 
 func (p *Player) RemoveCard(cardIndex uint) {
 	p.deck.Cards = append(p.deck.Cards[:cardIndex], p.deck.Cards[cardIndex+1:]...)
+}
+
+func (p *Player) SkipTimer() time.Duration {
+	return time.Duration(constants.DEFAULT_SKIP_TIMER-(p.AutoSkipCount*15)) * time.Second
+}
+
+func (p *Player) ResetAutoSkipCount() {
+	p.AutoSkipCount = 0
+}
+
+func (p *Player) IncreaseAutoSkipCount() {
+	p.AutoSkipCount++
 }

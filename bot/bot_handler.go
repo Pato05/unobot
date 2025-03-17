@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Pato05/unobot/uno"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -24,7 +23,7 @@ func NewBotHandler(bot *tgbotapi.BotAPI, verbose bool) *BotHandler {
 
 	return &BotHandler{
 		gameManager: GameManager{
-			games:   make(map[int64]*uno.Game[*UnoPlayer]),
+			games:   make(map[int64]*UnoGame),
 			players: make(map[int64]PlayerGame),
 		},
 		bot:    bot,
@@ -57,28 +56,35 @@ func (bh *BotHandler) ParseCommand(message string) string {
 // dispatches the update according to its fields,
 // creating a copy of the structs so that the variables
 // are not replaced by a subsequent update.
-func (bh *BotHandler) ProcessUpdate(update tgbotapi.Update) error {
+func (bh *BotHandler) ProcessUpdate(update tgbotapi.Update) {
 	if update.Message != nil {
 		// create a copy of the struct
 		msg := *update.Message
-		if update.Message.Chat.ID > 0 {
-			return bh.handlePrivateMessage(&msg)
+		if update.Message.Chat.Type == "private" {
+			go bh.handlePrivateMessage(&msg)
+			return
 		}
 
-		return bh.handleGroupMessage(&msg)
+		if update.Message.Chat.Type == "channel" {
+			bh.logDebug("Ignoring message from chat type: channel")
+			return
+		}
+
+		go bh.handleGroupMessage(&msg)
+		return
 	}
 
 	if update.InlineQuery != nil {
 		inlineQuery := *update.InlineQuery
-		return bh.handleInlineQuery(&inlineQuery)
+		go bh.handleInlineQuery(&inlineQuery)
+		return
 	}
 
 	if update.ChosenInlineResult != nil {
 		inlineResult := *update.ChosenInlineResult
-		return bh.handleInlineResult(&inlineResult)
+		go bh.handleInlineResult(&inlineResult)
+		return
 	}
-
-	return nil
 }
 
 /// Helper methods

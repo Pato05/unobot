@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/Pato05/unobot/cards"
-	"github.com/Pato05/unobot/uno"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -19,7 +18,7 @@ import (
 // TODO: fix that players can see each other's deck
 // TODO: fix that if player throws a Wild card and leaves, others can't play a card other than Wild ones
 
-type Game *uno.Game[*UnoPlayer]
+type Game *UnoGame
 
 func (bh *BotHandler) handleInlineQuery(inlineQuery *tgbotapi.InlineQuery) error {
 	userID := inlineQuery.From.ID
@@ -137,7 +136,7 @@ func (bh *BotHandler) handleInlineQuery(inlineQuery *tgbotapi.InlineQuery) error
 	return err
 }
 
-func (bh *BotHandler) handleChooseColorInlineQuery(inlineQuery *tgbotapi.InlineQuery, player *UnoPlayer, game *uno.Game[*UnoPlayer]) error {
+func (bh *BotHandler) handleChooseColorInlineQuery(inlineQuery *tgbotapi.InlineQuery, player *UnoPlayer, game *UnoGame) error {
 	colorsLength := len(choosableColorsString)
 	results := make([]interface{}, colorsLength+1)
 	for i, val := range choosableColorsString {
@@ -215,8 +214,7 @@ func (bh *BotHandler) handlePassInlineResult(chosenInlineResult *tgbotapi.Chosen
 
 	// sort deck because user took card and passed the turn
 	playerGame.UnoPlayer.Deck().Sort()
-	game.NextPlayer()
-	return bh.nextPlayer(playerGame.GameChatId, game)
+	return bh.nextPlayer(game)
 }
 
 func (bh *BotHandler) handleDrawInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
@@ -232,11 +230,12 @@ func (bh *BotHandler) handleDrawInlineResult(chosenInlineResult *tgbotapi.Chosen
 	err := game.CurrentPlayerDraw()
 	if err != nil {
 		bh.logDebug(err)
-		_, err := bh.bot.Send(tgbotapi.NewMessage(playerGame.GameChatId, err.Error()))
+		_, err := bh.bot.Send(tgbotapi.NewMessage(game.ChatId, err.Error()))
 		return err
 	}
 
-	return bh.nextPlayer(playerGame.GameChatId, game)
+	playerGame.Game.SetTimer(bh)
+	return bh.announceNextPlayer(game)
 }
 
 func (bh *BotHandler) handleBluffInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
@@ -253,7 +252,7 @@ func (bh *BotHandler) handleBluffInlineResult(chosenInlineResult *tgbotapi.Chose
 	if didBluff {
 		bh.bot.Send(tgbotapi.MessageConfig{
 			BaseChat: tgbotapi.BaseChat{
-				ChatID: playerGame.GameChatId,
+				ChatID: game.ChatId,
 			},
 			Text:      fmt.Sprintf("%s bluffed, giving them 4 cards.", game.PreviousPlayer().HTML()),
 			ParseMode: tgbotapi.ModeHTML,
@@ -261,15 +260,14 @@ func (bh *BotHandler) handleBluffInlineResult(chosenInlineResult *tgbotapi.Chose
 	} else {
 		bh.bot.Send(tgbotapi.MessageConfig{
 			BaseChat: tgbotapi.BaseChat{
-				ChatID: playerGame.GameChatId,
+				ChatID: game.ChatId,
 			},
 			Text:      fmt.Sprintf("%s didn't bluff, giving 6 cards to %s", game.PreviousPlayer().EscapedName(), game.CurrentPlayer().HTML()),
 			ParseMode: tgbotapi.ModeHTML,
 		})
 	}
 
-	game.NextPlayer()
-	return bh.nextPlayer(playerGame.GameChatId, game)
+	return bh.nextPlayer(game)
 }
 
 func (bh *BotHandler) handleChooseColorInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
@@ -286,19 +284,19 @@ func (bh *BotHandler) handleChooseColorInlineResult(chosenInlineResult *tgbotapi
 		return nil
 	}
 
-	newColor := cards.CardColor(newColorInt)
-
 	if newColorInt < 1 || newColorInt > 4 {
 		log.Println("invalid color, should range 1-4")
 		return nil
 	}
 
-	game_, found := bh.gameManager.GetPlayerGame(user.ID)
+	newColor := cards.CardColor(newColorInt)
+
+	playerGame, found := bh.gameManager.GetPlayerGame(user.ID)
 	if !found {
 		return nil
 	}
 
-	game := game_.Game
+	game := playerGame.Game
 
 	if game.CurrentPlayer().GetUID() != user.ID {
 		// fail silently
@@ -306,12 +304,8 @@ func (bh *BotHandler) handleChooseColorInlineResult(chosenInlineResult *tgbotapi
 	}
 
 	game.ChooseColor(newColor)
-	if err := bh.checkPlayerWon(game_); err != nil {
 
-	}
-	game.NextPlayer()
-
-	return bh.nextPlayer(game_.GameChatId, game)
+	return bh.nextPlayer(game)
 }
 
 func (bh *BotHandler) handlePlayInlineResult(chosenInlineResult *tgbotapi.ChosenInlineResult) error {
@@ -358,9 +352,12 @@ func (bh *BotHandler) handlePlayInlineResult(chosenInlineResult *tgbotapi.Chosen
 		return nil
 	}
 
+	// player has played a card, so reset their autoskipcount
+	player.ResetAutoSkipCount()
+
 	err = game.PlayCard(&card)
 	if err != nil {
-		_, err := bh.bot.Send(tgbotapi.NewMessage(playerGame.GameChatId, err.Error()))
+		_, err := bh.bot.Send(tgbotapi.NewMessage(game.ChatId, err.Error()))
 		return err
 	}
 
@@ -368,34 +365,30 @@ func (bh *BotHandler) handlePlayInlineResult(chosenInlineResult *tgbotapi.Chosen
 	game.Deck.Discard(card)
 
 	if player.ShouldShoutUNO() {
-		bh.bot.Send(tgbotapi.NewMessage(playerGame.GameChatId, "UNO!"))
+		bh.bot.Send(tgbotapi.NewMessage(game.ChatId, "UNO!"))
 	}
 
 	if player.ShouldChooseColor() {
-		msg := tgbotapi.NewMessage(playerGame.GameChatId, "Please choose a color")
+		msg := tgbotapi.NewMessage(game.ChatId, "Please choose a color")
 		msg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
 			InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{
 				bh.NewInlineKeyboardButtonSwitchCurrentChat("Choose a color", ""),
 			}},
 		}
+		game.SetTimer(bh)
 		_, err := bh.bot.Send(msg)
 		return err
 	}
 
-	if err := bh.checkPlayerWon(playerGame); err != nil {
-		return err
-	}
-
-	game.NextPlayer()
-
-	return bh.nextPlayer(playerGame.GameChatId, playerGame.Game)
+	return bh.nextPlayer(game)
 }
 
 func (bh *BotHandler) playerWonMsg(chatId int64, player *UnoPlayer) error {
 	return bh.SendMessageHTML(chatId, player.HTML()+" won!")
 }
 
-func (bh *BotHandler) playerWon(chatId int64, game *uno.Game[*UnoPlayer], player *UnoPlayer) error {
+func (bh *BotHandler) playerWon(chatId int64, game *UnoGame) error {
+	player := game.CurrentPlayer()
 	bh.playerWonMsg(chatId, player)
 	delete(bh.gameManager.players, player.GetUID())
 	err := game.CurrentPlayerWon()
@@ -408,24 +401,37 @@ func (bh *BotHandler) playerWon(chatId int64, game *uno.Game[*UnoPlayer], player
 	return nil
 }
 
-func (bh *BotHandler) checkPlayerWon(playerGame PlayerGame) error {
-	if playerGame.UnoPlayer.DidWin() {
-		err := bh.playerWon(playerGame.GameChatId, playerGame.Game, playerGame.UnoPlayer)
+// checks if a player won, and announces the next player
+func (bh *BotHandler) nextPlayer(game *UnoGame) error {
+	// disable the current timer
+	game.StopCurrentTimer()
+	bh.logDebug("nextPlayer()")
+
+	if game.CurrentPlayer().DidWin() {
+		err := bh.playerWon(game.ChatId, game)
 		if err != nil {
+			// stop the timer as the game is likely not to continue
+			game.StopCurrentTimer()
 			return err
 		}
+	} else {
+		game.NextPlayer()
+	}
 
-		return bh.nextPlayer(playerGame.GameChatId, playerGame.Game)
+	shouldAnnounceNextPlayer, _ := game.SetTimer(bh)
+	if shouldAnnounceNextPlayer {
+		return bh.announceNextPlayer(game)
 	}
 
 	return nil
 }
 
-func (bh *BotHandler) nextPlayer(chatId int64, game *uno.Game[*UnoPlayer]) error {
-	nextPlayer := game.CurrentPlayer()
+func (bh *BotHandler) announceNextPlayer(game *UnoGame) error {
+	player := game.CurrentPlayer()
+
 	_, err := bh.bot.Send(tgbotapi.MessageConfig{
 		BaseChat: tgbotapi.BaseChat{
-			ChatID:           chatId,
+			ChatID:           game.ChatId,
 			ReplyToMessageID: 0,
 			ReplyMarkup: tgbotapi.InlineKeyboardMarkup{
 				InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{
@@ -433,9 +439,17 @@ func (bh *BotHandler) nextPlayer(chatId int64, game *uno.Game[*UnoPlayer]) error
 				}},
 			},
 		},
-		Text:      "Next player: " + nextPlayer.HTML(),
+		Text:      "Next player: " + player.HTML(),
 		ParseMode: tgbotapi.ModeHTML,
 	})
 
 	return err
+}
+
+func (bh *BotHandler) announceKickedAFKPlayer(chatId int64, player *UnoPlayer) error {
+	return bh.SendMessageHTML(chatId, fmt.Sprintf("%s has been kicked for inactivity.", player.HTML()))
+}
+
+func (bh *BotHandler) announcePlayerSkipped(chatId int64, player *UnoPlayer) error {
+	return bh.SendMessageHTML(chatId, fmt.Sprintf("%s has been skipped. The skip timer has been reduced to %d seconds.", player.HTML(), uint(player.SkipTimer().Seconds())))
 }
