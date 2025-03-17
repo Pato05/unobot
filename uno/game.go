@@ -33,22 +33,22 @@ type Game[T IPlayer] struct {
 	CanCallBluff bool
 }
 
-func (self *Game[T]) Start() (*cards.Card, error) {
-	if self.Started {
+func (g *Game[T]) Start() (*cards.Card, error) {
+	if g.Started {
 		return nil, GameAlreadyStartedError{}
 	}
-	if len(self.Players) < 2 {
+	if len(g.Players) < 2 {
 		return nil, TooFewPlayersError{}
 	}
-	self.Started = true
-	self.Deck.Fill()
-	self.Deck.Shuffle()
-	for _, player := range self.Players {
-		player.Deck().Fill(&self.Deck)
+	g.Started = true
+	g.Deck.Fill()
+	g.Deck.Shuffle()
+	for _, player := range g.Players {
+		player.Deck().Fill(&g.Deck)
 	}
 	var firstCard *cards.Card
 	for {
-		card, err := self.Deck.DrawOne()
+		card, err := g.Deck.DrawOne()
 		if err != nil {
 			return nil, err
 		}
@@ -57,72 +57,72 @@ func (self *Game[T]) Start() (*cards.Card, error) {
 		if firstCard.Color != cards.Wild {
 			break
 		}
-		self.Deck.Discard(*firstCard)
+		g.Deck.Discard(*firstCard)
 	}
-	if err := self.PlayCard(firstCard); err != nil {
+	if err := g.PlayCard(firstCard); err != nil {
 		return nil, err
 	}
 	return firstCard, nil
 }
 
-func (self *Game[T]) CloseLobby() error {
-	if !self.Started {
+func (g *Game[T]) CloseLobby() error {
+	if !g.Started {
 		return GameNotStartedError{}
 	}
 
-	self.LobbyClosed = true
+	g.LobbyClosed = true
 	return nil
 }
 
-func (self *Game[T]) OpenLobby() error {
-	if !self.Started {
+func (g *Game[T]) OpenLobby() error {
+	if !g.Started {
 		return GameNotStartedError{}
 	}
 
-	self.LobbyClosed = false
+	g.LobbyClosed = false
 	return nil
 }
 
-func (self *Game[T]) JoinPlayer(player T) error {
-	if self.LobbyClosed {
+func (g *Game[T]) JoinPlayer(player T) error {
+	if g.LobbyClosed {
 		return LobbyClosedError{}
 	}
 
-	if len(self.Players) > 10 {
+	if len(g.Players) > 10 {
 		return TooManyPlayersError{}
 	}
 
-	for _, player_ := range self.Players {
+	for _, player_ := range g.Players {
 		if player.GetUID() == player_.GetUID() {
 			return PlayerAlreadyExistsError{}
 		}
 	}
-	if self.Started {
-		player.Deck().Fill(&self.Deck)
+	if g.Started {
+		player.Deck().Fill(&g.Deck)
 	}
 
-	self.playersCount++
-	self.Players = append(self.Players, player)
+	g.playersCount++
+	g.Players = append(g.Players, player)
 	return nil
 }
 
 // removes a player from the players list, and returns an error if
 // the game should be disbanded
-func (self *Game[T]) leavePlayer(index uint8) error {
+func (g *Game[T]) leavePlayer(index uint8) error {
 	// TODO: fix
-	if self.playersCount != 0 {
-		self.playersCount--
-		if self.index == self.playersCount {
-			self.index = 0
+	if g.playersCount != 0 {
+		g.playersCount--
+		if g.index == g.playersCount {
+			g.index = 0
 		}
 	}
 
-	self.Players = append(self.Players[:index], self.Players[index+1:]...)
-	if self.Started {
-		if self.playersCount <= 1 {
+	g.Players = append(g.Players[:index], g.Players[index+1:]...)
+	if g.Started {
+		if g.playersCount <= 1 {
 			return GameDisbandedLastPlayerWon{}
 		}
-	} else if self.playersCount == 0 {
+	} else if g.playersCount == 0 {
 		return GameDisbandedNoPlayers{}
 	}
 
@@ -131,14 +131,14 @@ func (self *Game[T]) leavePlayer(index uint8) error {
 
 // Warn the GameHandler that the current player won,
 // returns an error if the game should be disbanded
-func (self *Game[T]) CurrentPlayerWon() error {
-	return self.leavePlayer(self.currentPlayerIndex())
+func (g *Game[T]) CurrentPlayerWon() error {
+	return g.LeaveCurrentPlayer()
 }
 
-func (self *Game[T]) getPlayerIndex(player T) (uint8, error) {
+func (g *Game[T]) getPlayerIndex(player T) (uint8, error) {
 	var index uint8 = 0
 	found := false
-	for i, player_ := range self.Players {
+	for i, player_ := range g.Players {
 		if player.GetUID() == player_.GetUID() {
 			index = uint8(i)
 			found = true
@@ -152,96 +152,100 @@ func (self *Game[T]) getPlayerIndex(player T) (uint8, error) {
 	return index, nil
 }
 
-func (self *Game[T]) LeavePlayer(player T) error {
-	index, err := self.getPlayerIndex(player)
+func (g *Game[T]) LeavePlayer(player T) error {
+	index, err := g.getPlayerIndex(player)
 	if err != nil {
 		return err
 	}
 
-	return self.LeavePlayerByIndex(index)
+	return g.LeavePlayerByIndex(index)
 
 }
 
-func (self *Game[T]) LeavePlayerByIndex(index uint8) error {
-	if self.Started {
-		player := self.Players[index]
-		self.PreAutoSkipPlayer()
+func (g *Game[T]) LeavePlayerByIndex(index uint8) error {
+	if g.Started {
+		player := g.Players[index]
+		g.PreAutoSkipPlayer()
 		for _, card := range player.Deck().Cards {
-			self.Deck.Discard(card)
+			g.Deck.Discard(card)
 		}
 	}
 
-	return self.leavePlayer(index)
+	return g.leavePlayer(index)
 }
 
-func (self *Game[T]) Reverse() {
-	self.Reversed = !self.Reversed
+func (g *Game[T]) LeaveCurrentPlayer() error {
+	return g.LeavePlayerByIndex(g.currentPlayerIndex())
 }
 
-func (self *Game[T]) PreviousPlayer() T {
-	currentIndex := self.index
+func (g *Game[T]) Reverse() {
+	g.Reversed = !g.Reversed
+}
+
+func (g *Game[T]) PreviousPlayer() T {
+	currentIndex := g.index
 	if currentIndex == 0 {
-		currentIndex = self.playersCount - 1
+		currentIndex = g.playersCount - 1
 	} else {
 		currentIndex--
 	}
 
-	return self.Players[self.getActualIndex(currentIndex)]
+	return g.Players[g.getActualIndex(currentIndex)]
 }
 
-func (self *Game[T]) CurrentPlayer() T {
-	return self.Players[self.currentPlayerIndex()]
+func (g *Game[T]) CurrentPlayer() T {
+	return g.Players[g.currentPlayerIndex()]
 }
 
-func (self *Game[T]) getActualIndex(index uint8) uint8 {
-	if self.Reversed {
-		return self.playersCount - index - 1
+func (g *Game[T]) getActualIndex(index uint8) uint8 {
+	if g.Reversed {
+		return g.playersCount - index - 1
 	}
 
 	return index
 }
 
-func (self *Game[T]) currentPlayerIndex() uint8 {
-	if self.index >= self.playersCount {
-		self.index = 0
+func (g *Game[T]) currentPlayerIndex() uint8 {
+	if g.index >= g.playersCount {
+		g.index = 0
 	}
 
-	return self.getActualIndex(self.index)
+	return g.getActualIndex(g.index)
 }
 
-func (self *Game[T]) NextPlayer() T {
-	self.DidJustDraw = false
+func (g *Game[T]) NextPlayer() T {
+	g.DidJustDraw = false
 
-	self.index++
-	return self.Players[self.currentPlayerIndex()]
+	g.index++
+	return g.Players[g.currentPlayerIndex()]
 }
 
 // call this when a player leaves or a player is automatically skipped
-func (self *Game[T]) PreAutoSkipPlayer() {
-	player := self.CurrentPlayer()
+func (g *Game[T]) PreAutoSkipPlayer() {
+	player := g.CurrentPlayer()
 	// if the player should choose the colour (wild card played), let it choose a random colour
 	if player.ShouldChooseColor() {
-		self.PreviousCard.Color = cards.CardColor(rand.Intn(int(cards.Red)) + int(cards.Blue))
+		g.PreviousCard.Color = cards.CardColor(rand.Intn(int(cards.Red)) + int(cards.Blue))
 	}
 }
 
 // call this after a player drew (one or more) card(s)
-func (self *Game[T]) PlayerDrew() {
-	self.DrawCounter = 0
-	self.DidJustDraw = true
-	self.CanCallBluff = false
+func (g *Game[T]) PlayerDrew() {
+	g.DrawCounter = 0
+	g.DidJustDraw = true
+	g.CanCallBluff = false
 }
 
-func (self *Game[T]) CurrentPlayerDraw() error {
+func (g *Game[T]) CurrentPlayerDraw() error {
 	var err error
-	if self.DrawCounter == 0 {
-		err = self.CurrentPlayer().Deck().Draw(&self.Deck, 1)
-		self.PlayerDrew()
+	if g.DrawCounter == 0 {
+		err = g.CurrentPlayer().Deck().Draw(&g.Deck, 1)
+		g.PlayerDrew()
 	} else {
-		err = self.CurrentPlayer().Deck().Draw(&self.Deck, self.DrawCounter)
-		self.CurrentPlayer().Deck().Sort()
-		self.PlayerDrew()
-		self.NextPlayer()
+		err = g.CurrentPlayer().Deck().Draw(&g.Deck, g.DrawCounter)
+		g.CurrentPlayer().Deck().Sort()
+		g.PlayerDrew()
+		g.NextPlayer()
 	}
 
 	return err
@@ -250,41 +254,41 @@ func (self *Game[T]) CurrentPlayerDraw() error {
 // CallBluff action, NextPlayer() must be called afterwards
 //
 // returns whether the previous player bluffed or not
-func (self *Game[T]) CallBluff() bool {
+func (g *Game[T]) CallBluff() bool {
 	defer func() {
-		self.PlayerDrew()
+		g.PlayerDrew()
 	}()
 
 	// check if previous player did bluff.
-	previousPlayer := self.PreviousPlayer()
-	player := self.CurrentPlayer()
-	if self.DidBluff {
-		previousPlayer.Deck().Draw(&self.Deck, 4)
+	previousPlayer := g.PreviousPlayer()
+	player := g.CurrentPlayer()
+	if g.DidBluff {
+		previousPlayer.Deck().Draw(&g.Deck, 4)
 		return true
 	} else {
-		player.Deck().Draw(&self.Deck, 6)
+		player.Deck().Draw(&g.Deck, 6)
 		return false
 	}
 
 }
 
-func (self *Game[T]) CanCurrentPlayerPlayCard(card *cards.Card) bool {
-	if self.DrawCounter != 0 {
-		if self.PreviousCard.Special == cards.Special_PlusTwo {
+func (g *Game[T]) CanCurrentPlayerPlayCard(card *cards.Card) bool {
+	if g.DrawCounter != 0 {
+		if g.PreviousCard.Special == cards.Special_PlusTwo {
 			return card.Special == cards.Special_PlusTwo
 		}
 		return false
 	}
 
-	return self.IsCardPlayable(card)
+	return g.IsCardPlayable(card)
 }
 
-func (self *Game[T]) IsCardPlayable(card *cards.Card) bool {
-	if self.PreviousCard == nil {
+func (g *Game[T]) IsCardPlayable(card *cards.Card) bool {
+	if g.PreviousCard == nil {
 		return true
 	}
 
-	return card.IsPlayable(self.PreviousCard)
+	return card.IsPlayable(g.PreviousCard)
 }
 
 // Check if current player is bluffing
@@ -292,13 +296,13 @@ func (self *Game[T]) IsCardPlayable(card *cards.Card) bool {
 //	-> whether the current player can play any card that isn't a PlusFour
 //
 // => Used whenever a +4 is played
-func (self *Game[T]) IsCurrentPlayerBluffing() bool {
-	for _, card := range self.CurrentPlayer().Deck().Cards {
+func (g *Game[T]) IsCurrentPlayerBluffing() bool {
+	for _, card := range g.CurrentPlayer().Deck().Cards {
 		if card.Special == cards.Special_PlusFour {
 			continue
 		}
 
-		if self.IsCardPlayable(&card) {
+		if g.IsCardPlayable(&card) {
 			return true
 		}
 	}
@@ -306,41 +310,41 @@ func (self *Game[T]) IsCurrentPlayerBluffing() bool {
 	return false
 }
 
-func (self *Game[T]) PlayCard(card *cards.Card) error {
-	if self.DidBluff {
+func (g *Game[T]) PlayCard(card *cards.Card) error {
+	if g.DidBluff {
 		// reset bluff state
-		self.DidBluff = false
+		g.DidBluff = false
 	}
 
-	if !self.IsCardPlayable(card) {
+	if !g.IsCardPlayable(card) {
 		return CardNotPlayableError{}
 	}
 	switch card.Special {
 	case cards.Special_Colorchooser:
-		self.CurrentPlayer().SetShouldChooseColor(true)
+		g.CurrentPlayer().SetShouldChooseColor(true)
 	case cards.Special_PlusFour:
-		self.DidBluff = self.IsCurrentPlayerBluffing()
-		self.CanCallBluff = true // for the next player
-		self.DrawCounter += 4
-		self.CurrentPlayer().SetShouldChooseColor(true)
+		g.DidBluff = g.IsCurrentPlayerBluffing()
+		g.CanCallBluff = true // for the next player
+		g.DrawCounter += 4
+		g.CurrentPlayer().SetShouldChooseColor(true)
 	case cards.Special_PlusTwo:
-		self.DrawCounter += 2
+		g.DrawCounter += 2
 	case cards.Special_Skip:
-		self.NextPlayer() // skip the next player
+		g.NextPlayer() // skip the next player
 	case cards.Special_Reverse:
-		self.Reverse()
+		g.Reverse()
 	}
-	self.PreviousCard = card
+	g.PreviousCard = card
 	return nil
 }
 
-func (self *Game[T]) ChooseColor(color cards.CardColor) {
-	if !self.CurrentPlayer().ShouldChooseColor() {
+func (g *Game[T]) ChooseColor(color cards.CardColor) {
+	if !g.CurrentPlayer().ShouldChooseColor() {
 		return
 	}
 
-	self.CurrentPlayer().SetShouldChooseColor(false)
+	g.CurrentPlayer().SetShouldChooseColor(false)
 	// Choose color by changing the previous card's color;
 	// the previous card being a Wild (Colorchooser or PlusFour)
-	self.PreviousCard.Color = color
+	g.PreviousCard.Color = color
 }
