@@ -182,41 +182,53 @@ func (g *Game[T]) Reverse() {
 	g.Reversed = !g.Reversed
 }
 
-func (g *Game[T]) PreviousPlayer() T {
-	currentIndex := g.index
-	if currentIndex == 0 {
-		currentIndex = g.playersCount - 1
-	} else {
-		currentIndex--
+func (g *Game[T]) previousIndex() uint8 {
+	if g.index == 0 {
+		return g.playersCount - 1
 	}
 
-	return g.Players[g.getActualIndex(currentIndex)]
+	return g.index - 1
+}
+
+func (g *Game[T]) nextIndex() uint8 {
+	if g.index >= g.playersCount-1 {
+		return 0
+	}
+
+	return g.index + 1
+}
+
+func (g *Game[T]) PreviousPlayer() T {
+	var currentIndex uint8
+	if g.Reversed {
+		currentIndex = g.nextIndex()
+	} else {
+		currentIndex = g.previousIndex()
+	}
+
+	return g.Players[currentIndex]
 }
 
 func (g *Game[T]) CurrentPlayer() T {
 	return g.Players[g.currentPlayerIndex()]
 }
 
-func (g *Game[T]) getActualIndex(index uint8) uint8 {
-	if g.Reversed {
-		return g.playersCount - index - 1
-	}
-
-	return index
-}
-
 func (g *Game[T]) currentPlayerIndex() uint8 {
-	if g.index >= g.playersCount {
-		g.index = 0
-	}
-
-	return g.getActualIndex(g.index)
+	return g.index
 }
 
 func (g *Game[T]) NextPlayer() T {
 	g.DidJustDraw = false
 
-	g.index++
+	// if the player played a reverse card and there's only two players, the turn should be of the current player
+	if g.PreviousCard.Special != cards.Special_Reverse || g.playersCount != 2 {
+		if g.Reversed {
+			g.index = g.previousIndex()
+		} else {
+			g.index = g.nextIndex()
+		}
+	}
+
 	return g.Players[g.currentPlayerIndex()]
 }
 

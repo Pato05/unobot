@@ -12,6 +12,8 @@ func (bh *BotHandler) handleGroupMessage(message *tgbotapi.Message) error {
 	command := bh.ParseCommand(message.Text)
 
 	switch command {
+	case "start":
+		return bh.handleGroupStart(message)
 	case "gonew":
 		return bh.handleNewGame(message)
 	case "gojoin":
@@ -33,6 +35,14 @@ func (bh *BotHandler) handleGroupMessage(message *tgbotapi.Message) error {
 	}
 
 	return nil
+}
+
+func (bh *BotHandler) handleGroupStart(message *tgbotapi.Message) error {
+	if message.Text != "/start@"+bh.bot.Self.UserName+" 1" {
+		return nil
+	}
+
+	return bh.SendMessage(message.Chat.ID, "Thank you for adding me to your group! Use /gonew to start a new game!")
 }
 
 func (bh *BotHandler) handleNewGame(message *tgbotapi.Message) error {

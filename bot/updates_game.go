@@ -70,7 +70,7 @@ func (bh *BotHandler) handleInlineQuery(inlineQuery *tgbotapi.InlineQuery) error
 
 	Cards := player.Deck().Cards
 	cardsLength := len(Cards)
-	results := make([]interface{}, cardsLength+extra)
+	results := make([]any, cardsLength+extra)
 
 	if isPlayersTurn {
 		if game.DidJustDraw {
@@ -103,7 +103,7 @@ func (bh *BotHandler) handleInlineQuery(inlineQuery *tgbotapi.InlineQuery) error
 
 		canPlayCard := isPlayersTurn && game.CanCurrentPlayerPlayCard(&card)
 		if canPlayCard && game.DidJustDraw {
-			canPlayCard = index == cardsLength-1
+			canPlayCard = index == 0
 		}
 
 		if canPlayCard {
@@ -200,6 +200,8 @@ func (bh *BotHandler) handleInlineResult(chosenInlineResult *tgbotapi.ChosenInli
 	case "call_bluff":
 		return bh.handleBluffInlineResult(chosenInlineResult)
 	case "gameinfo":
+	case "join_game_error":
+	case "game_not_started_error":
 		return nil
 	}
 
