@@ -116,8 +116,8 @@ func (bh *BotHandler) handleInlineQuery(inlineQuery *tgbotapi.InlineQuery) error
 		} else {
 			results[i] = tgbotapi.InlineQueryResultCachedSticker{
 				Type:      "sticker",
-				ID:        fmt.Sprintf("grey_%d", i),
-				StickerID: card.GetFileID().Grey,
+				ID:        fmt.Sprintf("gray_%d", i),
+				StickerID: card.GetFileID().Gray,
 				InputMessageContent: tgbotapi.InputTextMessageContent{
 					Text:      gameInfoStr,
 					ParseMode: tgbotapi.ModeHTML,
@@ -188,6 +188,10 @@ func (bh *BotHandler) handleInlineResult(chosenInlineResult *tgbotapi.ChosenInli
 		return bh.handleChooseColorInlineResult(chosenInlineResult)
 	}
 
+	if strings.HasPrefix(id, "gray_") {
+		return nil
+	}
+
 	switch id {
 	case "draw_card":
 		return bh.handleDrawInlineResult(chosenInlineResult)
@@ -195,6 +199,8 @@ func (bh *BotHandler) handleInlineResult(chosenInlineResult *tgbotapi.ChosenInli
 		return bh.handlePassInlineResult(chosenInlineResult)
 	case "call_bluff":
 		return bh.handleBluffInlineResult(chosenInlineResult)
+	case "gameinfo":
+		return nil
 	}
 
 	bh.logger.Print("WARN: unknown inline result id? ", id)
@@ -330,7 +336,11 @@ func (bh *BotHandler) handlePlayInlineResult(chosenInlineResult *tgbotapi.Chosen
 		return nil
 	}
 
-	playerGame := bh.gameManager.players[user.ID]
+	playerGame, found := bh.gameManager.GetPlayerGame(user.ID)
+	if !found {
+		// fail silently
+		return nil
+	}
 	game, player := playerGame.Game, playerGame.UnoPlayer
 
 	if len(player.Deck().Cards) < cardIndex {

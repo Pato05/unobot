@@ -9,7 +9,7 @@ type Card struct {
 
 type CardIDs struct {
 	Normal string
-	Grey   string
+	Gray   string
 }
 
 func (c *Card) IsSpecial() bool {

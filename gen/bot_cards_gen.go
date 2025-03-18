@@ -44,7 +44,7 @@ func contains[T comparable](s []T, needle T) bool {
 	return false
 }
 
-func writeGreyCardsCode() {
+func writeGrayCardsCode() {
 	var resultingCode bytes.Buffer
 	actionIcons := make(map[string]string)
 	resultingCode.WriteString(`package cards
@@ -62,7 +62,7 @@ const (
 
 	}
 	resultingCode.WriteByte(')')
-	os.WriteFile("cards/grey_card_constants.go", resultingCode.Bytes(), 0644)
+	os.WriteFile("cards/gray_card_constants.go", resultingCode.Bytes(), 0644)
 
 	var codeActionIcons bytes.Buffer
 	codeActionIcons.WriteString(`package cards
@@ -82,7 +82,7 @@ const (`)
 func HandleCardsGen(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
 	if update.Message.From.ID == constants.BOT_ADMIN {
 		if isHandlingGrayCards {
-			HandleGreyCardsGen(update, bot)
+			HandleGrayCardsGen(update, bot)
 			return
 		}
 		if update.Message.Sticker != nil {
@@ -107,7 +107,7 @@ func HandleCardsGen(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
 					cardFileIDMap = make(map[string]string)
 					colorIndex = 0
 					cardIndex = 0
-					HandleGreyCardsGen(update, bot)
+					HandleGrayCardsGen(update, bot)
 					return
 				}
 			}
@@ -120,11 +120,11 @@ func HandleCardsGen(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
 	}
 }
 
-func HandleGreyCardsGen(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
+func HandleGrayCardsGen(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
 	if update.Message.From.ID == constants.BOT_ADMIN {
 		if update.Message.Sticker != nil {
 			if colorIndex >= 0 {
-				cardFileIDMap[fmt.Sprintf("Grey_%s_%s", colors[colorIndex], colorCards[cardIndex])] = update.Message.Sticker.FileID
+				cardFileIDMap[fmt.Sprintf("Gray_%s_%s", colors[colorIndex], colorCards[cardIndex])] = update.Message.Sticker.FileID
 				if cardIndex++; cardIndex > 12 {
 					cardIndex = 0
 					if colorIndex++; colorIndex == 4 {
@@ -133,7 +133,7 @@ func HandleGreyCardsGen(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
 				}
 			} else {
 				if colorIndex == -1 {
-					cardFileIDMap[fmt.Sprintf("Grey_%s", blackCards[cardIndex])] = update.Message.Sticker.FileID
+					cardFileIDMap[fmt.Sprintf("Gray_%s", blackCards[cardIndex])] = update.Message.Sticker.FileID
 					if cardIndex++; cardIndex >= 2 {
 						cardIndex = 0
 						colorIndex = -2
@@ -142,7 +142,7 @@ func HandleGreyCardsGen(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
 					cardFileIDMap[gameControlCards[cardIndex]] = update.Message.Sticker.FileID
 					if cardIndex++; cardIndex >= 6 {
 						bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Writing to file..."))
-						writeGreyCardsCode()
+						writeGrayCardsCode()
 						bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Done!"))
 						return
 					}
@@ -151,11 +151,11 @@ func HandleGreyCardsGen(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
 			}
 		}
 		if colorIndex >= 0 {
-			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Please send Grey %s %s", colors[colorIndex], colorCards[cardIndex])))
+			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Please send Gray %s %s", colors[colorIndex], colorCards[cardIndex])))
 		} else {
 			switch colorIndex {
 			case -1:
-				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Please send Grey %s", blackCards[cardIndex])))
+				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Please send Gray %s", blackCards[cardIndex])))
 			case -2:
 				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Please send %s", gameControlCards[cardIndex])))
 			}

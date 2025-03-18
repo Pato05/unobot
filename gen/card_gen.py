@@ -68,7 +68,7 @@ def main():
 
     print(found_cards)
 
-    with open("cards/grey_card_constants.go", "r") as f:
+    with open("cards/gray_card_constants.go", "r") as f:
         for line in f:
             line = line.strip()
             if not "fileId_" in line:
@@ -130,7 +130,7 @@ var CardFileIDs = []CardIDs{{\n"""
         new_code += f"    // {colors[key]} cards\n"
         new_code += f"    " + \
             ",\n    ".join(
-                f"{{Normal: {x[0]}, Grey: {x[1]}}}" for x in cards) + ",\n\n"
+                f"{{Normal: {x[0]}, Gray: {x[1]}}}" for x in cards) + ",\n\n"
     new_code += "}"
     new_code += """
 
