@@ -25,7 +25,8 @@ type Game[T IPlayer] struct {
 	// if the game has started
 	Started bool
 	// if new players are NOT allowed to join
-	LobbyClosed    bool
+	LobbyClosed bool
+	// the uid of the player that created the game
 	GameCreatorUID int64
 	// whether the previous player bluffed
 	DidBluff bool
@@ -221,7 +222,7 @@ func (g *Game[T]) NextPlayer() T {
 	g.DidJustDraw = false
 
 	// if the player played a reverse card and there's only two players, the turn should be of the current player
-	if g.PreviousCard.Special != cards.Special_Reverse || g.playersCount != 2 {
+	if g.PreviousCard != nil && (g.PreviousCard.Special != cards.Special_Reverse || g.playersCount != 2) {
 		if g.Reversed {
 			g.index = g.previousIndex()
 		} else {
